@@ -3414,6 +3414,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0a5ab837f0983c0a9210d7847931f64e3be67fcb0ab93d625f7845a0132c825"
 
 [[package]]
+name = "fast-surface-nets"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2aef9e8d9e33f51d8120a2e997a819f18239ad7c2735e353ade79208a9a1c442"
+dependencies = [
+ "glam 0.29.3",
+ "ndshape",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3802,6 +3812,7 @@ dependencies = [
  "bevy_yarnspinner_example_dialogue_view",
  "bincode",
  "bitflags 2.10.0",
+ "fast-surface-nets",
  "getrandom",
  "landmass_rerecast",
  "rand",

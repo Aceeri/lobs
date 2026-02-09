@@ -93,6 +93,7 @@ getrandom = { version = "0.3", default-features = false, features = [
     "wasm_js",
 ] }
 
+fast-surface-nets = "0.2"
 bitflags = "2"
 anyhow = "1"
 regex = "1"

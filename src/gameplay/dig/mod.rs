@@ -1,5 +1,7 @@
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use fast_surface_nets::ndshape::{RuntimeShape, Shape};
+use fast_surface_nets::{SurfaceNetsBuffer, surface_nets};
 
 pub fn plugin(app: &mut App) {
     app.add_systems(FixedUpdate, voxel_sim);
@@ -83,6 +85,37 @@ impl VoxelSim {
 
         let index = self.linearize(pos);
         self.voxels[index] = voxel;
+    }
+
+    pub fn sample(&self) -> HashMap<Voxel, SurfaceNetsBuffer> {
+        let padded = [
+            self.bounds.x as u32 + 2,
+            self.bounds.y as u32 + 2,
+            self.bounds.z as u32 + 2,
+        ];
+        let shape = RuntimeShape::<u32, 3>::new(padded);
+        let max = [padded[0] - 1, padded[1] - 1, padded[2] - 1];
+        let num_samples = (padded[0] * padded[1] * padded[2]) as usize;
+
+        let mut results = HashMap::new();
+        for &voxel_type in &[Voxel::Sand, Voxel::Dirt] {
+            let mut sdf = vec![-0.5f32; num_samples];
+            for i in 0..self.voxels.len() {
+                if self.voxels[i] == voxel_type {
+                    let pos = self.delinearize(i);
+                    let sdf_index = Shape::linearize(&shape, [
+                        pos.x as u32 + 1,
+                        pos.y as u32 + 1,
+                        pos.z as u32 + 1,
+                    ]) as usize;
+                    sdf[sdf_index] = 0.5;
+                }
+            }
+            let mut buffer = SurfaceNetsBuffer::default();
+            surface_nets(&sdf, &shape, [0; 3], max, &mut buffer);
+            results.insert(voxel_type, buffer);
+        }
+        results
     }
 
     pub fn simulate(&mut self) {
