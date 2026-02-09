@@ -60,7 +60,8 @@ fn on_add(add: On<Add, Npc>, mut commands: Commands, assets: Res<AssetServer>) {
         .with_child((
             Name::new("Npc Model"),
             SceneRoot(assets.load_trenchbroom_model::<Npc>()),
-            Transform::from_xyz(0.0, -NPC_FLOAT_HEIGHT, 0.0),
+            Transform::from_xyz(0.0, 0.0, 0.0)
+                .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
         ));
         // .observe(setup_npc_animations);
 }
