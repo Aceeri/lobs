@@ -197,10 +197,14 @@ pub fn add_voxel_children(
         let material = match voxel {
             Voxel::Dirt => StandardMaterial {
                 base_color: Color::srgb(0.5, 0.5, 0.5),
+                perceptual_roughness: 1.0,
+                reflectance: 0.2,
                 ..default()
             },
             Voxel::Sand => StandardMaterial {
                 base_color: Color::srgb(0.8, 0.8, 0.8),
+                perceptual_roughness: 1.0,
+                reflectance: 0.2,
                 ..default()
             },
             _ => continue,
@@ -281,10 +285,13 @@ impl VoxelSim {
     }
 
     pub fn sample(&self) -> HashMap<Voxel, SurfaceNetsBuffer> {
+        // +1 padding on min side, +2 on max side.
+        // surface_nets doesn't generate faces on the positive boundary,
+        // so we need the extra layer on max to avoid missing quads there.
         let padded = [
-            self.bounds.x as u32 + 2,
-            self.bounds.y as u32 + 2,
-            self.bounds.z as u32 + 2,
+            self.bounds.x as u32 + 3,
+            self.bounds.y as u32 + 3,
+            self.bounds.z as u32 + 3,
         ];
         let shape = RuntimeShape::<u32, 3>::new(padded);
         let max = [padded[0] - 1, padded[1] - 1, padded[2] - 1];
