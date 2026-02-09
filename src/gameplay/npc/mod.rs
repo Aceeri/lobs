@@ -29,7 +29,8 @@ pub(super) fn plugin(app: &mut App) {
     app.add_observer(on_add);
 }
 
-#[point_class(base(Transform, Visibility), model("models/fox/Fox.gltf"))]
+// #[point_class(base(Transform, Visibility), model("models/fox/Fox.gltf"))]
+#[point_class(base(Transform, Visibility), model("models/lobster/lowpoly_lobster.glb"))]
 pub(crate) struct Npc;
 
 pub(crate) const NPC_RADIUS: f32 = 0.6;
@@ -50,8 +51,8 @@ fn on_add(add: On<Add, Npc>, mut commands: Commands, assets: Res<AssetServer>) {
             },
             ColliderDensity(1_000.0),
             RigidBody::Kinematic,
-            AnimationState::<NpcAnimationState>::default(),
-            AnimationPlayerAncestor,
+            // AnimationState::<NpcAnimationState>::default(),
+            // AnimationPlayerAncestor,
             CollisionLayers::new(CollisionLayer::Character, LayerMask::ALL),
             // The Yarn Node is what we use to trigger dialogue.
             YarnNode::new("Npc"),

@@ -76,6 +76,10 @@ fn assets() -> impl Bundle {
             "Rest of the assets",
             "CC BY-NC-SA 3.0 by The Dark Mod Team, converted to Bevy-friendly assets by Jan Hohenheim",
         ],
+        [
+            "Lobster",
+            "(https://skfb.ly/puDOF) by Azazel750 is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/)."
+        ]
     ])
 }
 
