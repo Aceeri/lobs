@@ -160,7 +160,20 @@ fn main() -> AppExit {
     // Add plugins that proload levels. These have to come later than the other plugins
     // because the objects they reference need to have been registered first.
     app.add_plugins((gameplay::plugin, shader_compilation::plugin));
+
+    app.add_systems(Startup, parent_observers);
+
     app.run()
+}
+
+fn parent_observers(
+    mut commands: Commands,
+    observers: Query<Entity, (With<Observer>, Without<ChildOf>)>,
+) {
+    let parent = commands.spawn(Name::new("Observers")).id();
+    for entity in &observers {
+        commands.entity(entity).insert(ChildOf(parent));
+    }
 }
 
 /// High-level groupings of systems for the app in the [`Update`] schedule.

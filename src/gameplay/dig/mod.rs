@@ -9,8 +9,31 @@ use fixedbitset::FixedBitSet;
 pub fn plugin(app: &mut App) {
     app.add_systems(FixedUpdate, voxel_sim);
     app.add_systems(Update, remesh_voxels);
+    app.add_systems(Startup, spawn_test_voxel_sim);
     app.add_observer(add_dirty_buff);
     app.add_observer(add_voxel_children);
+}
+
+fn spawn_test_voxel_sim(mut commands: Commands) {
+    let bounds = IVec3::new(8, 8, 8);
+    let mut sim = VoxelSim::new(bounds);
+    // Fill bottom half with dirt
+    for x in 0..bounds.x {
+        for z in 0..bounds.z {
+            for y in 0..bounds.y / 2 {
+                sim.set(IVec3::new(x, y, z), Voxel::Dirt);
+            }
+        }
+    }
+    commands.spawn((
+        Name::new("VoxelSim"),
+        Transform {
+            translation: Vec3::new(-2.0, 2.0, -11.0),
+            scale: Vec3::splat(0.2),
+            ..default()
+        },
+        sim,
+    ));
 }
 
 pub fn voxel_sim(mut sims: Query<(&mut VoxelSim, &mut DirtyBuffer)>) {
