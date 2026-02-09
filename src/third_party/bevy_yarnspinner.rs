@@ -11,7 +11,10 @@ use crate::screens::Screen;
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins((
         // In Wasm, we need to load the dialogue file manually. If we're not targeting Wasm, we can just use `YarnSpinnerPlugin::default()` instead.
-        YarnSpinnerPlugin::with_yarn_sources(vec![YarnFileSource::file("dialogue/npc.yarn")]),
+        YarnSpinnerPlugin::with_yarn_sources(vec![
+            // YarnFileSource::file("dialogue/npc.yarn"),
+            YarnFileSource::file("dialogue/lefty_larry.yarn"),
+        ]),
         ExampleYarnSpinnerDialogueViewPlugin::default(),
     ));
     app.add_systems(OnEnter(Screen::Gameplay), setup_dialogue_runner);

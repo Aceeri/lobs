@@ -55,7 +55,7 @@ fn on_add(add: On<Add, Npc>, mut commands: Commands, assets: Res<AssetServer>) {
             // AnimationPlayerAncestor,
             CollisionLayers::new(CollisionLayer::Character, LayerMask::ALL),
             // The Yarn Node is what we use to trigger dialogue.
-            YarnNode::new("Npc"),
+            YarnNode::new("Lefty_Larry"),
         ))
         .with_child((
             Name::new("Npc Model"),
