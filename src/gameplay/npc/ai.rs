@@ -12,7 +12,10 @@ use bevy_landmass::{
 };
 
 use crate::{
-    gameplay::{npc::NPC_SPEED, player::navmesh_position::LastValidPlayerNavmeshPosition},
+    gameplay::{
+        npc::NPC_SPEED,
+        player::{Player, navmesh_position::LastValidPlayerNavmeshPosition},
+    },
     screens::Screen,
 };
 
@@ -128,17 +131,30 @@ fn set_controller_velocity(
 
 fn rotate_npc(
     mut agent_query: Query<(&mut Transform, &LinearVelocity), With<Npc>>,
+    player: Single<&Transform, (With<Player>, Without<Npc>)>,
     time: Res<Time>,
 ) {
     for (mut transform, velocity) in &mut agent_query {
         let hz_velocity = vec3(velocity.x, 0.0, velocity.z);
-        if let Ok(dir) = Dir3::new(hz_velocity) {
-            let target = transform.looking_to(dir, Vec3::Y).rotation;
-            let decay_rate = f32::ln(600.0);
-            transform
-                .rotation
-                .smooth_nudge(&target, decay_rate, time.delta_secs());
-        }
+        let target_dir = if hz_velocity.length() > 0.1 {
+            let Ok(dir) = Dir3::new(hz_velocity) else {
+                continue;
+            };
+            dir
+        } else {
+            // Stopped: face the player.
+            let to_player = player.translation - transform.translation;
+            let to_player_hz = vec3(to_player.x, 0.0, to_player.z);
+            let Ok(dir) = Dir3::new(to_player_hz) else {
+                continue;
+            };
+            dir
+        };
+        let target = transform.looking_to(target_dir, Vec3::Y).rotation;
+        let decay_rate = f32::ln(600.0);
+        transform
+            .rotation
+            .smooth_nudge(&target, decay_rate, time.delta_secs());
     }
 }
 
