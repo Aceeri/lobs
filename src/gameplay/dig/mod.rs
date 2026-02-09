@@ -1,3 +1,4 @@
+use avian3d::prelude::{Collider, RigidBody};
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::platform::collections::HashMap;
@@ -32,6 +33,7 @@ fn spawn_test_voxel_sim(mut commands: Commands) {
             scale: Vec3::splat(0.2),
             ..default()
         },
+        RigidBody::Static,
         sim,
     ));
 }
@@ -43,19 +45,20 @@ pub fn voxel_sim(mut sims: Query<(&mut VoxelSim, &mut DirtyBuffer)>) {
 }
 
 pub fn remesh_voxels(
-    mut sims: Query<(&mut VoxelSim, &VoxelEntities)>,
+    mut commands: Commands,
+    mut sims: Query<(Entity, &mut VoxelSim, &VoxelEntities)>,
     mut mesh3ds: Query<&mut Mesh3d>,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    for (mut sim, entities) in &mut sims {
+    for (sim_entity, mut sim, entities) in &mut sims {
         if !sim.needs_remesh {
             continue;
         }
         sim.needs_remesh = false;
 
         let buffers = sim.sample();
-        for (voxel, buffer) in buffers {
-            let Some(&entity) = entities.entities.get(&voxel) else {
+        for (voxel, buffer) in &buffers {
+            let Some(&entity) = entities.entities.get(voxel) else {
                 continue;
             };
             let Ok(mut mesh3d) = mesh3ds.get_mut(entity) else {
@@ -65,10 +68,23 @@ pub fn remesh_voxels(
                 PrimitiveTopology::TriangleList,
                 RenderAssetUsages::default(),
             );
-            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, buffer.positions);
-            mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, buffer.normals);
-            mesh.insert_indices(Indices::U32(buffer.indices));
+            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, buffer.positions.clone());
+            mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, buffer.normals.clone());
+            mesh.insert_indices(Indices::U32(buffer.indices.clone()));
             mesh3d.0 = meshes.add(mesh);
+        }
+
+        // Build voxel collider from all non-air positions.
+        let mut voxel_positions: Vec<IVec3> = Vec::new();
+        for i in 0..sim.voxels.len() {
+            if sim.voxels[i] != Voxel::Air {
+                voxel_positions.push(sim.delinearize(i));
+            }
+        }
+        if !voxel_positions.is_empty() {
+            commands
+                .entity(sim_entity)
+                .insert(Collider::voxels(Vec3::ONE, &voxel_positions));
         }
     }
 }
@@ -196,7 +212,7 @@ pub fn add_voxel_children(
     for voxel in &[Voxel::Sand, Voxel::Dirt] {
         let material = match voxel {
             Voxel::Dirt => StandardMaterial {
-                base_color: Color::srgb(0.5, 0.5, 0.5),
+                base_color: Color::srgb(64.0 / 255.0, 41.0 / 255.0, 5.0 / 255.0),
                 perceptual_roughness: 1.0,
                 reflectance: 0.2,
                 ..default()

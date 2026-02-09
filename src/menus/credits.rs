@@ -78,8 +78,12 @@ fn assets() -> impl Bundle {
         ],
         [
             "Lobster",
-            "(https://skfb.ly/puDOF) by Azazel750 is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/)."
-        ]
+            "(https://skfb.ly/puDOF) by Azazel750 is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).",
+        ],
+        [
+            "Shovel",
+            "(https://skfb.ly/pzFUY) by wasabicats is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).",
+        ],
     ])
 }
 
