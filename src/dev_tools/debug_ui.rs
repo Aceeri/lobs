@@ -16,7 +16,8 @@ use bevy::{
     prelude::*,
 };
 use bevy_enhanced_input::prelude::*;
-use bevy_inspector_egui::{bevy_egui::EguiPlugin, quick::WorldInspectorPlugin};
+use bevy_inspector_egui::bevy_egui::{EguiContext, EguiPlugin, PrimaryEguiContext, egui};
+use bevy_inspector_egui::bevy_inspector;
 use bevy_landmass::debug::{EnableLandmassDebug, Landmass3dDebugPlugin, LandmassGizmos};
 use bevy_rerecast::debug::{DetailNavmeshGizmo, NavmeshGizmoConfig};
 
@@ -35,8 +36,12 @@ pub(super) fn plugin(app: &mut App) {
     });
     app.add_plugins((
         EguiPlugin::default(),
-        WorldInspectorPlugin::new().run_if(is_inspector_active),
+        bevy_inspector_egui::DefaultInspectorConfigPlugin,
     ));
+    app.add_systems(
+        bevy_inspector_egui::bevy_egui::EguiPrimaryContextPass,
+        world_inspector_ui.run_if(is_inspector_active),
+    );
 
     app.add_plugins((
         PhysicsDebugPlugin,
@@ -207,6 +212,24 @@ struct InspectorActive(bool);
 
 fn is_inspector_active(inspector_active: Res<InspectorActive>) -> bool {
     inspector_active.0
+}
+
+fn world_inspector_ui(world: &mut World) {
+    let egui_context =
+        world.query_filtered::<&mut EguiContext, With<PrimaryEguiContext>>().single(world);
+    let Ok(egui_context) = egui_context else {
+        return;
+    };
+    let mut egui_context = egui_context.clone();
+
+    egui::SidePanel::right("world_inspector_panel")
+        .default_width(320.0)
+        .show(egui_context.get_mut(), |ui| {
+            egui::ScrollArea::both().show(ui, |ui| {
+                bevy_inspector::ui_for_world(world, ui);
+                ui.allocate_space(ui.available_size());
+            });
+        });
 }
 
 #[derive(Resource, Debug, Default, Eq, PartialEq)]
