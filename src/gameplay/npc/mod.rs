@@ -1,6 +1,6 @@
 //! NPC handling. In the demo, the NPC is a fox that moves towards the player. We can interact with the NPC to trigger dialogue.
 
-use animation::{NpcAnimationState, setup_npc_animations};
+use animation::NpcAnimationState;
 use avian3d::prelude::*;
 use bevy::prelude::*;
 
@@ -61,6 +61,6 @@ fn on_add(add: On<Add, Npc>, mut commands: Commands, assets: Res<AssetServer>) {
             Name::new("Npc Model"),
             SceneRoot(assets.load_trenchbroom_model::<Npc>()),
             Transform::from_xyz(0.0, -NPC_FLOAT_HEIGHT, 0.0),
-        ))
-        .observe(setup_npc_animations);
+        ));
+        // .observe(setup_npc_animations);
 }

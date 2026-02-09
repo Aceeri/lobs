@@ -32,38 +32,38 @@ struct NpcAnimations {
     run: AnimationNodeIndex,
 }
 
-pub(crate) fn setup_npc_animations(
-    add: On<Add, AnimationPlayers>,
-    q_anim_players: Query<&AnimationPlayers>,
-    mut commands: Commands,
-    assets: Res<NpcAssets>,
-    mut graphs: ResMut<Assets<AnimationGraph>>,
-) {
-    let anim_players = q_anim_players.get(add.entity).unwrap();
-    for anim_player in anim_players.iter() {
-        let (graph, indices) = AnimationGraph::from_clips([
-            assets.run_animation.clone(),
-            assets.idle_animation.clone(),
-            assets.walk_animation.clone(),
-        ]);
-        let [run_index, idle_index, walk_index] = indices.as_slice() else {
-            unreachable!()
-        };
-        let graph_handle = graphs.add(graph);
-
-        let animations = NpcAnimations {
-            idle: *idle_index,
-            walk: *walk_index,
-            run: *run_index,
-        };
-        let transitions = AnimationTransitions::new();
-        commands.entity(anim_player).insert((
-            animations,
-            AnimationGraphHandle(graph_handle),
-            transitions,
-        ));
-    }
-}
+// pub(crate) fn setup_npc_animations(
+//     add: On<Add, AnimationPlayers>,
+//     q_anim_players: Query<&AnimationPlayers>,
+//     mut commands: Commands,
+//     assets: Res<NpcAssets>,
+//     mut graphs: ResMut<Assets<AnimationGraph>>,
+// ) {
+//     let anim_players = q_anim_players.get(add.entity).unwrap();
+//     for anim_player in anim_players.iter() {
+//         let (graph, indices) = AnimationGraph::from_clips([
+//             assets.run_animation.clone(),
+//             assets.idle_animation.clone(),
+//             assets.walk_animation.clone(),
+//         ]);
+//         let [run_index, idle_index, walk_index] = indices.as_slice() else {
+//             unreachable!()
+//         };
+//         let graph_handle = graphs.add(graph);
+//
+//         let animations = NpcAnimations {
+//             idle: *idle_index,
+//             walk: *walk_index,
+//             run: *run_index,
+//         };
+//         let transitions = AnimationTransitions::new();
+//         commands.entity(anim_player).insert((
+//             animations,
+//             AnimationGraphHandle(graph_handle),
+//             transitions,
+//         ));
+//     }
+// }
 
 /// Managed by [`play_animations`]
 #[derive(Debug, Clone, Copy, PartialEq)]
