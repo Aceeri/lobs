@@ -53,7 +53,10 @@ fn on_add(add: On<Add, Npc>, mut commands: Commands, assets: Res<AssetServer>) {
             RigidBody::Kinematic,
             // AnimationState::<NpcAnimationState>::default(),
             // AnimationPlayerAncestor,
-            CollisionLayers::new(CollisionLayer::Character, LayerMask::ALL),
+            CollisionLayers::new(
+                CollisionLayer::Character,
+                [CollisionLayer::Default, CollisionLayer::Prop],
+            ),
             // The Yarn Node is what we use to trigger dialogue.
             YarnNode::new("Lefty_Larry"),
         ))
