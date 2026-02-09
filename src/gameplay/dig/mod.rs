@@ -1,3 +1,5 @@
+use bevy::asset::RenderAssetUsages;
+use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use fast_surface_nets::ndshape::{RuntimeShape, Shape};
@@ -8,6 +10,7 @@ pub fn plugin(app: &mut App) {
     app.add_systems(FixedUpdate, voxel_sim);
     app.add_systems(Update, remesh_voxels);
     app.add_observer(add_dirty_buff);
+    app.add_observer(add_voxel_children);
 }
 
 pub fn voxel_sim(mut sims: Query<(&mut VoxelSim, &mut DirtyBuffer)>) {
@@ -16,11 +19,33 @@ pub fn voxel_sim(mut sims: Query<(&mut VoxelSim, &mut DirtyBuffer)>) {
     }
 }
 
-pub fn remesh_voxels(mut sims: Query<(&mut VoxelSim, &mut VoxelEntities)>) {
-    for (mut sim, mut entities) in &mut sims {
-        if sim.any_modified() {
-            let buffers = sim.sample();
-            for (voxel, buffer) in buffers {}
+pub fn remesh_voxels(
+    mut sims: Query<(&mut VoxelSim, &VoxelEntities)>,
+    mut mesh3ds: Query<&mut Mesh3d>,
+    mut meshes: ResMut<Assets<Mesh>>,
+) {
+    for (mut sim, entities) in &mut sims {
+        if !sim.needs_remesh {
+            continue;
+        }
+        sim.needs_remesh = false;
+
+        let buffers = sim.sample();
+        for (voxel, buffer) in buffers {
+            let Some(&entity) = entities.entities.get(&voxel) else {
+                continue;
+            };
+            let Ok(mut mesh3d) = mesh3ds.get_mut(entity) else {
+                continue;
+            };
+            let mut mesh = Mesh::new(
+                PrimitiveTopology::TriangleList,
+                RenderAssetUsages::default(),
+            );
+            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, buffer.positions);
+            mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, buffer.normals);
+            mesh.insert_indices(Indices::U32(buffer.indices));
+            mesh3d.0 = meshes.add(mesh);
         }
     }
 }
@@ -135,12 +160,49 @@ pub fn add_dirty_buff(on: On<Add, VoxelSim>, mut commands: Commands, sim: Query<
         .insert(DirtyBuffer::new(sim.bounds));
 }
 
+pub fn add_voxel_children(
+    on: On<Add, VoxelEntities>,
+    mut commands: Commands,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut sim: Query<&mut VoxelEntities>,
+) {
+    let Ok(mut entities) = sim.get_mut(on.entity) else {
+        return;
+    };
+
+    for voxel in &[Voxel::Sand, Voxel::Dirt] {
+        let material = match voxel {
+            Voxel::Dirt => StandardMaterial {
+                base_color: Color::srgb(0.5, 0.5, 0.5),
+                ..default()
+            },
+            Voxel::Sand => StandardMaterial {
+                base_color: Color::srgb(0.8, 0.8, 0.8),
+                ..default()
+            },
+            _ => continue,
+        };
+
+        let voxel_id = commands
+            .spawn((
+                Name::new(format!("Voxel {:?}", voxel)),
+                Transform::default(),
+                MeshMaterial3d(materials.add(material)),
+                Mesh3d(default()),
+                ChildOf(on.entity),
+            ))
+            .id();
+        entities.entities.insert(*voxel, voxel_id);
+    }
+}
+
 #[derive(Component, Clone)]
 #[require(VoxelEntities)]
 pub struct VoxelSim {
     bounds: IVec3,
     voxels: Vec<Voxel>,
     modified: FixedBitSet,
+    needs_remesh: bool,
 }
 
 impl VoxelSim {
@@ -150,6 +212,7 @@ impl VoxelSim {
             bounds,
             voxels: vec![Voxel::Air; volume],
             modified: FixedBitSet::with_capacity(volume),
+            needs_remesh: false,
         }
     }
 
@@ -157,7 +220,6 @@ impl VoxelSim {
         (self.bounds.x * self.bounds.y * self.bounds.z) as usize
     }
 
-    /// Mark a cell and its 18-connected neighbors as dirty in the write buffer.
     fn mark_modified(&mut self, index: usize) {
         self.modified.insert(index);
     }
@@ -192,6 +254,7 @@ impl VoxelSim {
         let index = self.linearize(pos);
         self.voxels[index] = voxel;
         self.mark_modified(index);
+        self.needs_remesh = true;
     }
 
     pub fn sample(&self) -> HashMap<Voxel, SurfaceNetsBuffer> {
@@ -206,7 +269,7 @@ impl VoxelSim {
 
         let mut results = HashMap::new();
         for &voxel_type in &[Voxel::Sand, Voxel::Dirt] {
-            let mut sdf = vec![-0.5f32; num_samples];
+            let mut sdf = vec![0.5f32; num_samples];
             for i in 0..self.voxels.len() {
                 if self.voxels[i] == voxel_type {
                     let pos = self.delinearize(i);
@@ -214,11 +277,17 @@ impl VoxelSim {
                         &shape,
                         [pos.x as u32 + 1, pos.y as u32 + 1, pos.z as u32 + 1],
                     ) as usize;
-                    sdf[sdf_index] = 0.5;
+                    sdf[sdf_index] = -0.5;
                 }
             }
             let mut buffer = SurfaceNetsBuffer::default();
             surface_nets(&sdf, &shape, [0; 3], max, &mut buffer);
+            // Offset positions back by 1 to undo the padding shift.
+            for p in &mut buffer.positions {
+                p[0] -= 1.0;
+                p[1] -= 1.0;
+                p[2] -= 1.0;
+            }
             results.insert(voxel_type, buffer);
         }
         results
@@ -243,6 +312,7 @@ impl VoxelSim {
 
                         self.mark_modified(i);
                         self.mark_modified(below);
+                        self.needs_remesh = true;
                     }
                 }
                 _ => {}
