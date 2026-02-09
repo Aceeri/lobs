@@ -3813,6 +3813,7 @@ dependencies = [
  "bincode",
  "bitflags 2.10.0",
  "fast-surface-nets",
+ "fixedbitset",
  "getrandom",
  "landmass_rerecast",
  "rand",
