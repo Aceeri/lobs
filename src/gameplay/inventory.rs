@@ -26,7 +26,7 @@ pub fn plugin(app: &mut App) {
         Update,
         (update_inventory_hud, update_held_item).run_if(resource_changed::<Inventory>),
     );
-    app.add_systems(Update, use_tool);
+    app.add_systems(Update, (use_tool, animate_shovel_swing));
     app.add_observer(on_select_slot::<SelectSlot1, 0>);
     app.add_observer(on_select_slot::<SelectSlot2, 1>);
     app.add_observer(on_select_slot::<SelectSlot3, 2>);
@@ -78,7 +78,7 @@ pub(crate) struct UseTool;
 
 const DIG_DISTANCE: f32 = 5.0;
 const DIG_RADIUS: f32 = 2.0;
-const DIG_COOLDOWN: f32 = 0.2;
+const DIG_COOLDOWN: f32 = 0.5;
 
 #[derive(Resource)]
 struct DigCooldown {
@@ -103,6 +103,7 @@ fn use_tool(
     player: Single<&GlobalTransform, With<PlayerCamera>>,
     spatial_query: SpatialQuery,
     mut voxel_sims: Query<(&mut VoxelSim, &GlobalTransform)>,
+    mut shovel: Query<&mut ShovelSwing>,
 ) {
     cooldown.timer.tick(time.delta());
     if cooldown.timer.just_finished() {
@@ -122,6 +123,9 @@ fn use_tool(
             dig_voxel(&player, &spatial_query, &mut voxel_sims);
             cooldown.timer.reset();
             cooldown.ready = false;
+            if let Ok(mut swing) = shovel.single_mut() {
+                swing.timer.reset();
+            }
         }
         _ => {}
     }
@@ -284,6 +288,15 @@ impl FromWorld for InventoryAssets {
 #[derive(Component)]
 struct HeldItemModel;
 
+const SHOVEL_SWING_X_END: f32 = 0.0;
+const SHOVEL_SWING_X_START: f32 = -1.7;
+const SHOVEL_REST_ROTATION: Vec3 = Vec3::new(SHOVEL_SWING_X_START, 3.00, -1.7);
+
+#[derive(Component)]
+struct ShovelSwing {
+    timer: Timer,
+}
+
 fn update_held_item(
     mut commands: Commands,
     inventory: Res<Inventory>,
@@ -305,10 +318,18 @@ fn update_held_item(
                 .spawn((
                     Name::new("Held Shovel"),
                     HeldItemModel,
+                    ShovelSwing {
+                        timer: Timer::from_seconds(DIG_COOLDOWN, TimerMode::Once),
+                    },
                     SceneRoot(inventory_assets.shovel.clone()),
                     Transform {
                         translation: Vec3::new(0.4, -0.2, -0.5),
-                        rotation: Quat::from_euler(EulerRot::XYZ, 0.0, 3.0, -1.7),
+                        rotation: Quat::from_euler(
+                            EulerRot::XYZ,
+                            SHOVEL_REST_ROTATION.x,
+                            SHOVEL_REST_ROTATION.y,
+                            SHOVEL_REST_ROTATION.z,
+                        ),
                         ..default()
                     },
                 ))
@@ -333,6 +354,25 @@ fn update_held_item(
             commands.entity(camera_entity).add_child(held);
         }
         None => {}
+    }
+}
+
+fn animate_shovel_swing(time: Res<Time>, mut query: Query<(&mut ShovelSwing, &mut Transform)>) {
+    for (mut swing, mut transform) in &mut query {
+        swing.timer.tick(time.delta());
+        let t = (swing.timer.elapsed_secs() / swing.timer.duration().as_secs_f32()).clamp(0.0, 1.0);
+        // Lerp x rotation from start to end, then snap back to rest when timer finishes
+        let x = if swing.timer.just_finished() || t >= 1.0 {
+            SHOVEL_REST_ROTATION.x
+        } else {
+            SHOVEL_SWING_X_START + (SHOVEL_SWING_X_END - SHOVEL_SWING_X_START) * t
+        };
+        transform.rotation = Quat::from_euler(
+            EulerRot::XYZ,
+            x,
+            SHOVEL_REST_ROTATION.y,
+            SHOVEL_REST_ROTATION.z,
+        );
     }
 }
 
