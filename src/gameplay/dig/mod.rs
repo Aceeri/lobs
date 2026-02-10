@@ -16,7 +16,7 @@ pub fn plugin(app: &mut App) {
 }
 
 fn spawn_test_voxel_sim(mut commands: Commands) {
-    let bounds = IVec3::new(8, 8, 8);
+    let bounds = IVec3::new(16, 16, 16);
     let mut sim = VoxelSim::new(bounds);
     // Fill bottom half with dirt
     for x in 0..bounds.x {
@@ -328,11 +328,10 @@ impl VoxelSim {
             }
             let mut buffer = SurfaceNetsBuffer::default();
             surface_nets(&sdf, &shape, [0; 3], max, &mut buffer);
-            // Offset positions back by 1 to undo the padding shift.
             for p in &mut buffer.positions {
-                p[0] -= 1.0;
-                p[1] -= 1.0;
-                p[2] -= 1.0;
+                p[0] -= 0.5;
+                p[1] -= 0.5;
+                p[2] -= 0.5;
             }
             results.insert(voxel_type, buffer);
         }

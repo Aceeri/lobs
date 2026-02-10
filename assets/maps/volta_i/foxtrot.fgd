@@ -1,0 +1,204 @@
+@BaseClass base(__transform, __visibility) = __directional_light
+[
+	color(color1) : "Light Color" : "1 1 1" : ""
+	illuminance(float) : "Light Illuminance" : "10000" : "Illuminance in lux (lumens per square meter), representing the amount of light projected onto surfaces by this light source."
+	shadows_enabled(choices) : "Enable Shadows" : "false" : "" = 
+	[
+		"true" : "true"
+		"false" : "false"
+	]
+	affects_lightmapped_mesh_diffuse(choices) : "Affects Lightmapped Mesh Diffuse" : "true" : "Whether this light contributes diffuse lighting to meshes with lightmaps.
+Note that the specular portion of the light is always considered, because Bevy currently has no means to bake specular light." = 
+	[
+		"true" : "true"
+		"false" : "false"
+	]
+	shadow_depth_bias(float) : "Shadow Depth Bias" : "0.02" : "A value that adjusts the tradeoff between self-shadowing artifacts and proximity of shadows to their casters. This value frequently must be tuned to the specific scene; this is normal and a well-known part of the shadow mapping workflow."
+	shadow_normal_bias(float) : "Shadow Normal Bias" : "1.8" : "A bias applied along the direction of the fragment's surface normal. It is scaled to the shadow map's texel size so that it is automatically adjusted to the orthographic projection."
+]
+
+@BaseClass base(__transform, __visibility) = __point_light
+[
+	color(color1) : "Light Color" : "1 1 1" : ""
+	intensity(float) : "Light Intensity" : "1000000" : "Luminous power in lumens, representing the amount of light emitted by this source in all directions."
+	range(float) : "Light Range" : "20" : "Cut-off for the light's area-of-effect. Fragments outside this range will not be affected by this light at all, so it's important to tune this together with `intensity` to prevent hard lighting cut-offs."
+	radius(float) : "Light Radius" : "0" : "Simulates a light source coming from a spherical volume with the given radius. This affects the size of specular highlights created by this light."
+	shadows_enabled(choices) : "Enable Shadows" : "false" : "" = 
+	[
+		"true" : "true"
+		"false" : "false"
+	]
+	affects_lightmapped_mesh_diffuse(choices) : "Affects Lightmapped Mesh Diffuse" : "true" : "Whether this light contributes diffuse lighting to meshes with lightmaps.
+Note that the specular portion of the light is always considered, because Bevy currently has no means to bake specular light." = 
+	[
+		"true" : "true"
+		"false" : "false"
+	]
+	shadow_depth_bias(float) : "Shadow Depth Bias" : "0.08" : "A bias used when sampling shadow maps to avoid 'shadow-acne', or false shadow occlusions that happen as a result of shadow-map fragments not mapping 1:1 to screen-space fragments."
+	shadow_normal_bias(float) : "Shadow Normal Bias" : "0.6" : "A bias applied along the direction of the fragment's surface normal. It is scaled to the shadow map's texel size so that it can be small close to the camera and gets larger further away."
+	shadow_map_near_z(float) : "Shadow Map Near Z" : "0.1" : "The distance from the light to near Z plane in the shadow map."
+]
+
+@BaseClass base(__transform, __visibility) = __spot_light
+[
+	color(color1) : "Light Color" : "1 1 1" : ""
+	intensity(float) : "Light Intensity" : "1000000" : "Luminous power in lumens, representing the amount of light emitted by this source in all directions."
+	range(float) : "Light Range" : "20" : "Range in meters that this light illuminates. Note that this value affects resolution of the shadow maps; generally, the higher you set it, the lower-resolution your shadow maps will be."
+	radius(float) : "Light Radius" : "0" : "Simulates a light source coming from a spherical volume with the given radius."
+	shadows_enabled(choices) : "Enable Shadows" : "false" : "" = 
+	[
+		"true" : "true"
+		"false" : "false"
+	]
+	affects_lightmapped_mesh_diffuse(choices) : "Affects Lightmapped Mesh Diffuse" : "true" : "Whether this light contributes diffuse lighting to meshes with lightmaps.
+Note that the specular portion of the light is always considered, because Bevy currently has no means to bake specular light." = 
+	[
+		"true" : "true"
+		"false" : "false"
+	]
+	shadow_depth_bias(float) : "Shadow Depth Bias" : "0.02" : "A value that adjusts the tradeoff between self-shadowing artifacts and proximity of shadows to their casters. This value frequently must be tuned to the specific scene; this is normal and a well-known part of the shadow mapping workflow."
+	shadow_normal_bias(float) : "Shadow Normal Bias" : "1.8" : "A bias applied along the direction of the fragment's surface normal. It is scaled to the shadow map's texel size so that it can be small close to the camera and gets larger further away."
+	shadow_map_near_z(float) : "Shadow Map Near Z" : "0.1" : "The distance from the light to near Z plane in the shadow map."
+	outer_angle(float) : "Light Cone Outer Angle" : "45" : "Angle defining the distance from the spot light direction to the outer limit of the light's cone of effect in degrees."
+	inner_angle(float) : "Light Cone Inner Angle" : "0" : "Angle defining the distance from the spot light direction to the inner limit of the light's cone of effect in degrees."
+]
+
+@BaseClass = __transform
+[
+	origin(vector) : "Translation/Origin" : "0 0 0" : ""
+	angles(vector) : "Rotation (pitch yaw roll) in degrees" : "0 0 0" : ""
+	scale(vector) : "Scale" : "1 1 1" : ""
+]
+
+@BaseClass = __visibility
+[
+	visibility(choices) : "Visibility" : "Inherited" : "" = 
+	[
+		"Inherited" : "Uses the visibility of its parents. If its a root-level entity, it will be visible."
+		"Hidden" : "Always not rendered, regardless of its parent's visibility."
+		"Visible" : "Always rendered, regardless of its parent's visibility."
+	]
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/containers/barrel01.gltf") = barrel01
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/containers/barrel_large_closed.gltf") = barrel_large_closed
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/furniture/shelves/bookshelf02.gltf") = bookshelf
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/fireplace/burntwood.gltf") = burning_logs
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/furniture/seating/wchair1.gltf") = chair
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/containers/crate01_big.gltf") = crate_big
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/containers/crate01_small.gltf") = crate_small
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/containers/crate_square.gltf") = crate_square
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/architecture/doors/door_stained_glass_118x52.gltf") = door_stained_glass
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/architecture/fencing/fence_bars_decorative01_single.gltf") = fence_bars_decorative_single
+[
+]
+
+@SolidClass base(__visibility) = func_generic : "Generic brush entity to separate from world geometry. bevy_trenchbroom's version of Quake's `func_wall`."
+[
+]
+
+@SolidClass base(__visibility) = func_group : "Groups a set of brushes together in-editor."
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/mechanical/generator2/generator2.gltf") = generator2
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/fireplace/grate.gltf") = grate
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/nature/ivy_part08.gltf") = ivy_part8
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/lights/non-extinguishable/round_lantern_sitting/round_lantern_sitting.gltf") = lamp_sitting
+[
+]
+
+@PointClass base(__directional_light) iconsprite({ path: "sprites/light_directional.png", scale: 0.1 }) = light_directional : "[`LightingWorkflow::DynamicOnly`] implementation."
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/lights/non-extinguishable/electric_plain1_unattached.gltf") = light_lamp_plain
+[
+	color(color1) : "color" : "0.7058824 0.7058824 0.9098039 1" : ""
+	intensity(float) : "intensity" : "13000" : ""
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/lights/non-extinguishable/lamp_shaded03/lamp_shaded03.gltf") = light_lamp_shaded03
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/lights/non-extinguishable/lamp_wall_electric_01/lamp_wall_electric_01.gltf") = light_lamp_wall_electric
+[
+]
+
+@PointClass base(__point_light) iconsprite({ path: "sprites/light_point.png", scale: 0.1 }) = light_point : "[`LightingWorkflow::DynamicOnly`] implementation."
+[
+]
+
+@PointClass base(__spot_light) iconsprite({ path: "sprites/light_spot.png", scale: 0.1 }) = light_spot : "[`LightingWorkflow::DynamicOnly`] implementation."
+[
+]
+
+@SolidClass base(__transform, __visibility) = light_window
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/lobster/lowpoly_lobster.glb") = npc
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/containers/package_medium.gltf") = package_medium
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/containers/package_small.gltf") = package_small
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/view_model/view_model.gltf") = player
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/decorative/signs/small_door_sign1.gltf") = small_door_sign1
+[
+]
+
+@PointClass base(__transform, __visibility) model("models/darkmod/furniture/tables/rtable1.gltf") = table
+[
+]
+
+@SolidClass = worldspawn : "The worldspawn entity contains the main structural geometry in the world, and its properties represent map-wide settings. Exactly one must be in every map."
+[
+]
+

@@ -81,7 +81,10 @@ fn setup_player(
             // This is Tnua's interface component.
             CharacterController::default(),
             ColliderDensity(1_000.0),
-            CollisionLayers::new(CollisionLayer::Character, LayerMask::ALL),
+            CollisionLayers::new(
+                CollisionLayer::Character,
+                [CollisionLayer::Default, CollisionLayer::Prop],
+            ),
             AnimationState::<PlayerAnimationState>::default(),
             children![(
                 Name::new("Player Landmass Character"),
