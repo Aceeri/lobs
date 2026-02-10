@@ -11,6 +11,7 @@ use bevy_ahoy::prelude::*;
 use bevy_enhanced_input::prelude::{Press, *};
 
 use super::Player;
+use crate::gameplay::inventory::{SelectSlot1, SelectSlot2, SelectSlot3};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_input_context::<PlayerInputContext>();
@@ -130,6 +131,24 @@ impl PlayerInputContext {
                 (
                     Action::<Interact>::new(),
                     bindings![KeyCode::KeyE, GamepadButton::South]
+                ),
+                (
+                    Action::<SelectSlot1>::new(),
+                    ActionSettings { consume_input: true, ..default() },
+                    Press::default(),
+                    bindings![KeyCode::Digit1],
+                ),
+                (
+                    Action::<SelectSlot2>::new(),
+                    ActionSettings { consume_input: true, ..default() },
+                    Press::default(),
+                    bindings![KeyCode::Digit2],
+                ),
+                (
+                    Action::<SelectSlot3>::new(),
+                    ActionSettings { consume_input: true, ..default() },
+                    Press::default(),
+                    bindings![KeyCode::Digit3],
                 ),
             ]));
     }
