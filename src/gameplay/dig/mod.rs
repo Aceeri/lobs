@@ -3,6 +3,7 @@ use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use bevy_trenchbroom::prelude::*;
 use fast_surface_nets::ndshape::{RuntimeShape, Shape};
 use fast_surface_nets::{SurfaceNetsBuffer, surface_nets};
 use fixedbitset::FixedBitSet;
@@ -10,32 +11,64 @@ use fixedbitset::FixedBitSet;
 pub fn plugin(app: &mut App) {
     app.add_systems(FixedUpdate, voxel_sim);
     app.add_systems(Update, remesh_voxels);
-    app.add_systems(Startup, spawn_test_voxel_sim);
     app.add_observer(add_dirty_buff);
     app.add_observer(add_voxel_children);
+    app.add_observer(on_add_voxel_volume);
 }
 
-fn spawn_test_voxel_sim(mut commands: Commands) {
-    let bounds = IVec3::new(16, 16, 16);
+#[derive(FgdType, Reflect, Debug, Clone, Default)]
+#[number_key]
+pub enum VoxelFill {
+    #[default]
+    /// Dirt
+    Dirt = 0,
+    /// Sand
+    Sand = 1,
+}
+
+#[point_class(base(Transform, Visibility))]
+pub(crate) struct VoxelVolume {
+    pub fill: VoxelFill,
+    pub bounds_x: i32,
+    pub bounds_y: i32,
+    pub bounds_z: i32,
+}
+
+impl Default for VoxelVolume {
+    fn default() -> Self {
+        Self {
+            fill: VoxelFill::default(),
+            bounds_x: 8,
+            bounds_y: 8,
+            bounds_z: 8,
+        }
+    }
+}
+
+fn on_add_voxel_volume(
+    add: On<Add, VoxelVolume>,
+    volume: Query<&VoxelVolume>,
+    mut commands: Commands,
+) {
+    let volume = volume.get(add.entity).unwrap();
+    let bounds = IVec3::new(volume.bounds_x, volume.bounds_y, volume.bounds_z);
     let mut sim = VoxelSim::new(bounds);
-    // Fill bottom half with dirt
+
+    let voxel = match volume.fill {
+        VoxelFill::Dirt => Voxel::Dirt,
+        VoxelFill::Sand => Voxel::Sand,
+    };
+
+    // Fill bottom half with the chosen voxel type
     for x in 0..bounds.x {
         for z in 0..bounds.z {
             for y in 0..bounds.y / 2 {
-                sim.set(IVec3::new(x, y, z), Voxel::Dirt);
+                sim.set(IVec3::new(x, y, z), voxel);
             }
         }
     }
-    commands.spawn((
-        Name::new("VoxelSim"),
-        Transform {
-            translation: Vec3::new(-2.0, 2.0, -11.0),
-            scale: Vec3::splat(0.2),
-            ..default()
-        },
-        RigidBody::Static,
-        sim,
-    ));
+
+    commands.entity(add.entity).insert((sim, RigidBody::Static));
 }
 
 pub fn voxel_sim(mut sims: Query<(&mut VoxelSim, &mut DirtyBuffer)>) {
