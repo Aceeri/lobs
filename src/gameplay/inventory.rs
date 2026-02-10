@@ -69,6 +69,7 @@ fn on_select_slot<Action: InputAction, const N: usize>(
 pub(crate) struct UseTool;
 
 const DIG_DISTANCE: f32 = 5.0;
+const DIG_RADIUS: f32 = 3.0;
 
 fn on_use_tool(
     _on: On<Start<UseTool>>,
@@ -107,21 +108,29 @@ fn dig_voxel(
         return;
     };
 
-    let hit_point = origin + *direction * hit.distance + *direction * 0.1;
+    // push it in a little bit so we aren't at the edge of a voxel
+    const BIAS: f32 = 0.1;
+    let hit_point = origin + *direction * hit.distance + *direction * BIAS;
 
     let local = sim_transform
         .compute_transform()
         .compute_affine()
         .inverse()
         .transform_point3(hit_point);
-    let voxel_pos = IVec3::new(
-        (local.x / VOXEL_SIZE).floor() as i32,
-        (local.y / VOXEL_SIZE).floor() as i32,
-        (local.z / VOXEL_SIZE).floor() as i32,
-    );
+    let center = (local / VOXEL_SIZE).floor().as_ivec3();
 
-    if sim.in_bounds(voxel_pos) {
-        sim.set(voxel_pos, crate::gameplay::dig::Voxel::Air);
+    let r = DIG_RADIUS as i32;
+    let r_sq = DIG_RADIUS * DIG_RADIUS;
+    for dx in -r..=r {
+        for dy in -r..=r {
+            for dz in -r..=r {
+                let dist_sq = (dx * dx + dy * dy + dz * dz) as f32;
+                if dist_sq <= r_sq {
+                    let pos = center + IVec3::new(dx, dy, dz);
+                    sim.set(pos, crate::gameplay::dig::Voxel::Air);
+                }
+            }
+        }
     }
 }
 
