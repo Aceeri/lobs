@@ -8,6 +8,7 @@ use bevy_enhanced_input::prelude::*;
 
 use crate::{
     RenderLayer,
+    asset_tracking::LoadResource,
     gameplay::{
         dig::{VOXEL_SIZE, VoxelSim},
         player::camera::PlayerCamera,
@@ -18,6 +19,7 @@ use crate::{
 
 pub fn plugin(app: &mut App) {
     app.init_resource::<Inventory>();
+    app.load_resource::<InventoryAssets>();
     app.add_systems(OnEnter(Screen::Gameplay), spawn_inventory_hud);
     app.add_systems(
         Update,
@@ -225,6 +227,25 @@ fn update_inventory_hud(
     }
 }
 
+#[derive(Resource, Asset, Clone, Reflect)]
+#[reflect(Resource)]
+struct InventoryAssets {
+    #[dependency]
+    shovel: Handle<Scene>,
+    #[dependency]
+    gun: Handle<Scene>,
+}
+
+impl FromWorld for InventoryAssets {
+    fn from_world(world: &mut World) -> Self {
+        let assets = world.resource::<AssetServer>();
+        Self {
+            shovel: assets.load("models/shovel/scene.gltf#Scene0"),
+            gun: assets.load("models/tommy_gun.glb#Scene0"),
+        }
+    }
+}
+
 #[derive(Component)]
 struct HeldItemModel;
 
@@ -233,7 +254,7 @@ fn update_held_item(
     inventory: Res<Inventory>,
     existing: Query<Entity, With<HeldItemModel>>,
     player_camera: Single<Entity, With<PlayerCamera>>,
-    asset_server: Res<AssetServer>,
+    inventory_assets: Res<InventoryAssets>,
 ) {
     // Despawn any existing held item
     for entity in &existing {
@@ -249,7 +270,7 @@ fn update_held_item(
                 .spawn((
                     Name::new("Held Shovel"),
                     HeldItemModel,
-                    SceneRoot(asset_server.load("models/shovel/scene.gltf#Scene0")),
+                    SceneRoot(inventory_assets.shovel.clone()),
                     Transform {
                         translation: Vec3::new(0.4, -0.2, -0.5),
                         rotation: Quat::from_euler(EulerRot::XYZ, 0.0, 3.0, -1.7),
@@ -265,8 +286,12 @@ fn update_held_item(
                 .spawn((
                     Name::new("Held Gun"),
                     HeldItemModel,
-                    SceneRoot(asset_server.load("models/tommy_gun.glb#Scene0")),
-                    Transform::from_xyz(0.3, -0.2, -0.5),
+                    SceneRoot(inventory_assets.gun.clone()),
+                    Transform {
+                        translation: Vec3::new(1.5, -0.3, -2.0),
+                        rotation: Quat::from_euler(EulerRot::XYZ, 0.0, -1.58, -0.035),
+                        scale: Vec3::splat(0.01),
+                    },
                 ))
                 .observe(configure_held_item_view_model)
                 .id();
