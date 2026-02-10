@@ -164,7 +164,7 @@ pub fn remesh_voxels(
 }
 
 /// Texture scale: how many world units per full texture repeat.
-const UV_SCALE: f32 = 1.0;
+const UV_SCALE: f32 = 30.0;
 
 fn build_flat_mesh(buffer: &SurfaceNetsBuffer) -> Mesh {
     let num_tris = buffer.indices.len() / 3;
