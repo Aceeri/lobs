@@ -1,8 +1,11 @@
 use avian3d::prelude::{Collider, RigidBody};
 use bevy::asset::RenderAssetUsages;
+use bevy::math::DVec3;
 use bevy::mesh::{Indices, PrimitiveTopology};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
+use bevy_trenchbroom::brush::ConvexHull;
+use bevy_trenchbroom::geometry::{Brushes, BrushesAsset};
 use bevy_trenchbroom::prelude::*;
 use fast_surface_nets::ndshape::{RuntimeShape, Shape};
 use fast_surface_nets::{SurfaceNetsBuffer, surface_nets};
@@ -10,10 +13,9 @@ use fixedbitset::FixedBitSet;
 
 pub fn plugin(app: &mut App) {
     app.add_systems(FixedUpdate, voxel_sim);
-    app.add_systems(Update, remesh_voxels);
+    app.add_systems(Update, (remesh_voxels, init_voxel_volumes));
     app.add_observer(add_dirty_buff);
     app.add_observer(add_voxel_children);
-    app.add_observer(on_add_voxel_volume);
 }
 
 #[derive(FgdType, Reflect, Debug, Clone, Default)]
@@ -26,49 +28,89 @@ pub enum VoxelFill {
     Sand = 1,
 }
 
-#[point_class(base(Transform, Visibility))]
+#[solid_class(base(Transform, Visibility))]
 pub(crate) struct VoxelVolume {
     pub fill: VoxelFill,
-    pub bounds_x: i32,
-    pub bounds_y: i32,
-    pub bounds_z: i32,
 }
 
 impl Default for VoxelVolume {
     fn default() -> Self {
         Self {
             fill: VoxelFill::default(),
-            bounds_x: 8,
-            bounds_y: 8,
-            bounds_z: 8,
         }
     }
 }
 
-fn on_add_voxel_volume(
-    add: On<Add, VoxelVolume>,
-    volume: Query<&VoxelVolume>,
+fn init_voxel_volumes(
     mut commands: Commands,
+    volumes: Query<(Entity, &VoxelVolume, &Brushes), Without<VoxelSim>>,
+    brushes_assets: Res<Assets<BrushesAsset>>,
 ) {
-    let volume = volume.get(add.entity).unwrap();
-    let bounds = IVec3::new(volume.bounds_x, volume.bounds_y, volume.bounds_z);
-    let mut sim = VoxelSim::new(bounds);
+    for (entity, volume, brushes) in &volumes {
+        let brushes_asset = match brushes {
+            Brushes::Owned(asset) => asset,
+            Brushes::Shared(handle) => {
+                let Some(asset) = brushes_assets.get(handle) else {
+                    continue;
+                };
+                asset
+            }
+            #[allow(unreachable_patterns)]
+            _ => continue,
+        };
 
-    let voxel = match volume.fill {
-        VoxelFill::Dirt => Voxel::Dirt,
-        VoxelFill::Sand => Voxel::Sand,
-    };
-
-    // Fill bottom half with the chosen voxel type
-    for x in 0..bounds.x {
-        for z in 0..bounds.z {
-            for y in 0..bounds.y / 2 {
-                sim.set(IVec3::new(x, y, z), voxel);
+        let mut min = DVec3::INFINITY;
+        let mut max = DVec3::NEG_INFINITY;
+        for brush in brushes_asset.iter() {
+            if let Some((from, to)) = brush.as_cuboid() {
+                min = min.min(from);
+                max = max.max(to);
+            } else {
+                for (vertex, _) in brush.calculate_vertices() {
+                    min = min.min(vertex);
+                    max = max.max(vertex);
+                }
             }
         }
-    }
 
-    commands.entity(add.entity).insert((sim, RigidBody::Static));
+        if !min.is_finite() || !max.is_finite() {
+            continue;
+        }
+
+        let size = max - min;
+        let bounds = IVec3::new(
+            size.x.ceil() as i32,
+            size.y.ceil() as i32,
+            size.z.ceil() as i32,
+        )
+        .max(IVec3::ONE);
+
+        let mut sim = VoxelSim::new(bounds);
+
+        let voxel = match volume.fill {
+            VoxelFill::Dirt => Voxel::Dirt,
+            VoxelFill::Sand => Voxel::Sand,
+        };
+
+        // just fill it
+        for x in 0..bounds.x {
+            for z in 0..bounds.z {
+                for y in 0..bounds.y {
+                    sim.set(IVec3::new(x, y, z), voxel);
+                }
+            }
+        }
+
+        // Center the voxel mesh on the brush AABB
+        let aabb_center = ((min + max) * 0.5).as_vec3();
+        let mesh_center = Vec3::new(bounds.x as f32, bounds.y as f32, bounds.z as f32) * 0.5;
+        let translation = aabb_center - mesh_center;
+        commands.entity(entity).insert((
+            sim,
+            RigidBody::Static,
+            Transform::from_translation(translation),
+        ));
+    }
 }
 
 pub fn voxel_sim(mut sims: Query<(&mut VoxelSim, &mut DirtyBuffer)>) {
