@@ -84,6 +84,14 @@ fn assets() -> impl Bundle {
             "Shovel",
             "(https://skfb.ly/pzFUY) by wasabicats is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).",
         ],
+        [
+            "1870s Style Top Hat",
+            "(https://skfb.ly/pDTRS) by MadeByYeshe is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).",
+        ],
+        [
+            "Tommy gun",
+            "(https://skfb.ly/o6OHN) by Redpool is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).",
+        ],
     ])
 }
 

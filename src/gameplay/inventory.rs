@@ -1,8 +1,13 @@
+use std::iter;
+
 use avian3d::prelude::*;
-use bevy::prelude::*;
+use bevy::{
+    camera::visibility::RenderLayers, light::NotShadowCaster, prelude::*, scene::SceneInstanceReady,
+};
 use bevy_enhanced_input::prelude::*;
 
 use crate::{
+    RenderLayer,
     gameplay::{
         dig::{VOXEL_SIZE, VoxelSim},
         player::camera::PlayerCamera,
@@ -16,7 +21,7 @@ pub fn plugin(app: &mut App) {
     app.add_systems(OnEnter(Screen::Gameplay), spawn_inventory_hud);
     app.add_systems(
         Update,
-        update_inventory_hud.run_if(resource_changed::<Inventory>),
+        (update_inventory_hud, update_held_item).run_if(resource_changed::<Inventory>),
     );
     app.add_observer(on_select_slot::<SelectSlot1, 0>);
     app.add_observer(on_select_slot::<SelectSlot2, 1>);
@@ -217,5 +222,74 @@ fn update_inventory_hud(
                 **text = item_name.to_string();
             }
         }
+    }
+}
+
+#[derive(Component)]
+struct HeldItemModel;
+
+fn update_held_item(
+    mut commands: Commands,
+    inventory: Res<Inventory>,
+    existing: Query<Entity, With<HeldItemModel>>,
+    player_camera: Single<Entity, With<PlayerCamera>>,
+    asset_server: Res<AssetServer>,
+) {
+    // Despawn any existing held item
+    for entity in &existing {
+        commands.entity(entity).despawn();
+    }
+
+    let active_item = &inventory.slots[inventory.active_slot];
+    let camera_entity = *player_camera;
+
+    match active_item {
+        Some(Item::Shovel) => {
+            let held = commands
+                .spawn((
+                    Name::new("Held Shovel"),
+                    HeldItemModel,
+                    SceneRoot(asset_server.load("models/shovel/scene.gltf#Scene0")),
+                    Transform {
+                        translation: Vec3::new(0.4, -0.2, -0.5),
+                        rotation: Quat::from_euler(EulerRot::XYZ, 0.0, 3.0, -1.7),
+                        ..default()
+                    },
+                ))
+                .observe(configure_held_item_view_model)
+                .id();
+            commands.entity(camera_entity).add_child(held);
+        }
+        Some(Item::Gun) => {
+            let held = commands
+                .spawn((
+                    Name::new("Held Gun"),
+                    HeldItemModel,
+                    SceneRoot(asset_server.load("models/tommy_gun.glb#Scene0")),
+                    Transform::from_xyz(0.3, -0.2, -0.5),
+                ))
+                .observe(configure_held_item_view_model)
+                .id();
+            commands.entity(camera_entity).add_child(held);
+        }
+        None => {}
+    }
+}
+
+fn configure_held_item_view_model(
+    ready: On<SceneInstanceReady>,
+    mut commands: Commands,
+    q_children: Query<&Children>,
+    q_mesh: Query<(), With<Mesh3d>>,
+) {
+    let root = ready.entity;
+
+    for child in iter::once(root)
+        .chain(q_children.iter_descendants(root))
+        .filter(|e| q_mesh.contains(*e))
+    {
+        commands
+            .entity(child)
+            .insert((RenderLayers::from(RenderLayer::VIEW_MODEL), NotShadowCaster));
     }
 }
