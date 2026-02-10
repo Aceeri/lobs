@@ -19,16 +19,17 @@ use crate::{
 
 pub fn plugin(app: &mut App) {
     app.init_resource::<Inventory>();
+    app.init_resource::<DigCooldown>();
     app.load_resource::<InventoryAssets>();
     app.add_systems(OnEnter(Screen::Gameplay), spawn_inventory_hud);
     app.add_systems(
         Update,
         (update_inventory_hud, update_held_item).run_if(resource_changed::<Inventory>),
     );
+    app.add_systems(Update, use_tool);
     app.add_observer(on_select_slot::<SelectSlot1, 0>);
     app.add_observer(on_select_slot::<SelectSlot2, 1>);
     app.add_observer(on_select_slot::<SelectSlot3, 2>);
-    app.add_observer(on_use_tool);
 }
 
 #[derive(Resource)]
@@ -76,18 +77,52 @@ fn on_select_slot<Action: InputAction, const N: usize>(
 pub(crate) struct UseTool;
 
 const DIG_DISTANCE: f32 = 5.0;
-const DIG_RADIUS: f32 = 3.0;
+const DIG_RADIUS: f32 = 2.0;
+const DIG_COOLDOWN: f32 = 0.2;
 
-fn on_use_tool(
-    _on: On<Start<UseTool>>,
+#[derive(Resource)]
+struct DigCooldown {
+    timer: Timer,
+    ready: bool,
+}
+
+impl Default for DigCooldown {
+    fn default() -> Self {
+        Self {
+            timer: Timer::from_seconds(DIG_COOLDOWN, TimerMode::Once),
+            ready: true,
+        }
+    }
+}
+
+fn use_tool(
+    time: Res<Time>,
     inventory: Res<Inventory>,
+    mouse: Res<ButtonInput<MouseButton>>,
+    mut cooldown: ResMut<DigCooldown>,
     player: Single<&GlobalTransform, With<PlayerCamera>>,
     spatial_query: SpatialQuery,
     mut voxel_sims: Query<(&mut VoxelSim, &GlobalTransform)>,
 ) {
+    cooldown.timer.tick(time.delta());
+    if cooldown.timer.just_finished() {
+        cooldown.ready = true;
+    }
+
+    if !mouse.pressed(MouseButton::Left) {
+        return;
+    }
+    if !cooldown.ready {
+        return;
+    }
+
     let active_item = &inventory.slots[inventory.active_slot];
     match active_item {
-        Some(Item::Shovel) => dig_voxel(&player, &spatial_query, &mut voxel_sims),
+        Some(Item::Shovel) => {
+            dig_voxel(&player, &spatial_query, &mut voxel_sims);
+            cooldown.timer.reset();
+            cooldown.ready = false;
+        }
         _ => {}
     }
 }

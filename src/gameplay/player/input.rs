@@ -153,7 +153,6 @@ impl PlayerInputContext {
                 (
                     Action::<UseTool>::new(),
                     ActionSettings { consume_input: false, ..default() },
-                    Press::default(),
                     bindings![MouseButton::Left],
                 ),
             ]));
