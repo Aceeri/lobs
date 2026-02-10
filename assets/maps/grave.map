@@ -94,3 +94,12 @@
 ( 368 -336 16 ) ( 368 -336 27 ) ( 368 -332.9166666666667 16 ) __TB_empty [ 0 0.32432432432438907 0 -19.027023 ] [ 0 0 -0.09090909090909077 9.454544 ] 90 1 1
 }
 }
+// entity 6
+{
+"classname" "light_directional"
+"origin" "0 0 9000"
+"angles" "45 45 45"
+"shadows_enabled" "true"
+"killtarget" ""
+"illuminance" "1000.000000"
+}

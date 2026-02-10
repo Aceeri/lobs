@@ -1,7 +1,12 @@
+use avian3d::prelude::*;
 use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
-use crate::screens::Screen;
+use crate::{
+    gameplay::{dig::VoxelSim, player::camera::PlayerCamera},
+    screens::Screen,
+    third_party::avian3d::CollisionLayer,
+};
 
 pub fn plugin(app: &mut App) {
     app.init_resource::<Inventory>();
@@ -13,6 +18,7 @@ pub fn plugin(app: &mut App) {
     app.add_observer(on_select_slot::<SelectSlot1, 0>);
     app.add_observer(on_select_slot::<SelectSlot2, 1>);
     app.add_observer(on_select_slot::<SelectSlot3, 2>);
+    app.add_observer(on_use_tool);
 }
 
 #[derive(Resource)]
@@ -30,7 +36,7 @@ impl Default for Inventory {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Item {
     Shovel,
     Gun,
@@ -53,6 +59,69 @@ fn on_select_slot<Action: InputAction, const N: usize>(
     mut inventory: ResMut<Inventory>,
 ) {
     inventory.active_slot = N;
+}
+
+#[derive(Debug, InputAction)]
+#[action_output(bool)]
+pub(crate) struct UseTool;
+
+const DIG_DISTANCE: f32 = 5.0;
+
+fn on_use_tool(
+    _on: On<Start<UseTool>>,
+    inventory: Res<Inventory>,
+    player: Single<&GlobalTransform, With<PlayerCamera>>,
+    spatial_query: SpatialQuery,
+    mut voxel_sims: Query<(&mut VoxelSim, &GlobalTransform)>,
+) {
+    let active_item = &inventory.slots[inventory.active_slot];
+    match active_item {
+        Some(Item::Shovel) => dig_voxel(&player, &spatial_query, &mut voxel_sims),
+        _ => {}
+    }
+}
+
+fn dig_voxel(
+    player: &GlobalTransform,
+    spatial_query: &SpatialQuery,
+    voxel_sims: &mut Query<(&mut VoxelSim, &GlobalTransform)>,
+) {
+    let camera_transform = player.compute_transform();
+    let origin = camera_transform.translation;
+    let direction = camera_transform.forward();
+
+    let Some(hit) = spatial_query.cast_ray(
+        origin,
+        direction,
+        DIG_DISTANCE,
+        true,
+        &SpatialQueryFilter::from_mask(CollisionLayer::Default),
+    ) else {
+        return;
+    };
+
+    let Ok((mut sim, sim_transform)) = voxel_sims.get_mut(hit.entity) else {
+        return;
+    };
+
+    // Compute the world-space hit point, nudged slightly into the surface
+    let hit_point = origin + *direction * hit.distance + *direction * 0.1;
+
+    // Convert to local voxel coordinates
+    let local = sim_transform
+        .compute_transform()
+        .compute_affine()
+        .inverse()
+        .transform_point3(hit_point);
+    let voxel_pos = IVec3::new(
+        local.x.floor() as i32,
+        local.y.floor() as i32,
+        local.z.floor() as i32,
+    );
+
+    if sim.in_bounds(voxel_pos) {
+        sim.set(voxel_pos, crate::gameplay::dig::Voxel::Air);
+    }
 }
 
 const SLOT_SIZE: f32 = 60.0;
@@ -127,6 +196,7 @@ fn update_inventory_hud(
         }
         .into();
 
+        // kinda wanna display a rotating tool for each of these, would be funny
         let item_name = inventory.slots[idx]
             .as_ref()
             .map(|item| format!("{:?}", item))
