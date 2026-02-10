@@ -11,6 +11,9 @@ use fast_surface_nets::ndshape::{RuntimeShape, Shape};
 use fast_surface_nets::{SurfaceNetsBuffer, surface_nets};
 use fixedbitset::FixedBitSet;
 
+/// World-space size of a single voxel. 4 voxels per world unit.
+pub const VOXEL_SIZE: f32 = 0.25;
+
 pub fn plugin(app: &mut App) {
     app.add_systems(FixedUpdate, voxel_sim);
     app.add_systems(Update, (remesh_voxels, init_voxel_volumes));
@@ -78,10 +81,11 @@ fn init_voxel_volumes(
         }
 
         let size = max - min;
+        let voxels_per_unit = (1.0 / VOXEL_SIZE) as f64;
         let bounds = IVec3::new(
-            size.x.ceil() as i32,
-            size.y.ceil() as i32,
-            size.z.ceil() as i32,
+            (size.x * voxels_per_unit).ceil() as i32,
+            (size.y * voxels_per_unit).ceil() as i32,
+            (size.z * voxels_per_unit).ceil() as i32,
         )
         .max(IVec3::ONE);
 
@@ -103,7 +107,8 @@ fn init_voxel_volumes(
 
         // Center the voxel mesh on the brush AABB
         let aabb_center = ((min + max) * 0.5).as_vec3();
-        let mesh_center = Vec3::new(bounds.x as f32, bounds.y as f32, bounds.z as f32) * 0.5;
+        let mesh_center =
+            Vec3::new(bounds.x as f32, bounds.y as f32, bounds.z as f32) * VOXEL_SIZE * 0.5;
         let translation = aabb_center - mesh_center;
         commands.entity(entity).insert((
             sim,
@@ -159,7 +164,7 @@ pub fn remesh_voxels(
         if !voxel_positions.is_empty() {
             commands
                 .entity(sim_entity)
-                .insert(Collider::voxels(Vec3::ONE, &voxel_positions));
+                .insert(Collider::voxels(Vec3::splat(VOXEL_SIZE), &voxel_positions));
         }
     }
 }
@@ -404,9 +409,9 @@ impl VoxelSim {
             let mut buffer = SurfaceNetsBuffer::default();
             surface_nets(&sdf, &shape, [0; 3], max, &mut buffer);
             for p in &mut buffer.positions {
-                p[0] -= 0.5;
-                p[1] -= 0.5;
-                p[2] -= 0.5;
+                p[0] = (p[0] - 0.5) * VOXEL_SIZE;
+                p[1] = (p[1] - 0.5) * VOXEL_SIZE;
+                p[2] = (p[2] - 0.5) * VOXEL_SIZE;
             }
             results.insert(voxel_type, buffer);
         }

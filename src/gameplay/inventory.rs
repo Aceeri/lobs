@@ -3,7 +3,10 @@ use bevy::prelude::*;
 use bevy_enhanced_input::prelude::*;
 
 use crate::{
-    gameplay::{dig::VoxelSim, player::camera::PlayerCamera},
+    gameplay::{
+        dig::{VOXEL_SIZE, VoxelSim},
+        player::camera::PlayerCamera,
+    },
     screens::Screen,
     third_party::avian3d::CollisionLayer,
 };
@@ -104,19 +107,17 @@ fn dig_voxel(
         return;
     };
 
-    // Compute the world-space hit point, nudged slightly into the surface
     let hit_point = origin + *direction * hit.distance + *direction * 0.1;
 
-    // Convert to local voxel coordinates
     let local = sim_transform
         .compute_transform()
         .compute_affine()
         .inverse()
         .transform_point3(hit_point);
     let voxel_pos = IVec3::new(
-        local.x.floor() as i32,
-        local.y.floor() as i32,
-        local.z.floor() as i32,
+        (local.x / VOXEL_SIZE).floor() as i32,
+        (local.y / VOXEL_SIZE).floor() as i32,
+        (local.z / VOXEL_SIZE).floor() as i32,
     );
 
     if sim.in_bounds(voxel_pos) {
