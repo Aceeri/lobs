@@ -1,7 +1,7 @@
 use avian3d::prelude::{Collider, RigidBody};
 use bevy::asset::RenderAssetUsages;
 use bevy::math::DVec3;
-use bevy::mesh::{Indices, PrimitiveTopology};
+use bevy::mesh::PrimitiveTopology;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy_trenchbroom::brush::ConvexHull;
@@ -105,7 +105,7 @@ fn init_voxel_volumes(
             }
         }
 
-        // Center the voxel mesh on the brush AABB
+        // center the voxel mesh on the brush AABB, should align it ok with trenchbroom
         let aabb_center = ((min + max) * 0.5).as_vec3();
         let mesh_center =
             Vec3::new(bounds.x as f32, bounds.y as f32, bounds.z as f32) * VOXEL_SIZE * 0.5;
@@ -144,17 +144,11 @@ pub fn remesh_voxels(
             let Ok(mut mesh3d) = mesh3ds.get_mut(entity) else {
                 continue;
             };
-            let mut mesh = Mesh::new(
-                PrimitiveTopology::TriangleList,
-                RenderAssetUsages::default(),
-            );
-            mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, buffer.positions.clone());
-            mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, buffer.normals.clone());
-            mesh.insert_indices(Indices::U32(buffer.indices.clone()));
+            let mesh = build_flat_mesh(&buffer);
             mesh3d.0 = meshes.add(mesh);
         }
 
-        // Build voxel collider from all non-air positions.
+        // voxel collider from all non-air positions
         let mut voxel_positions: Vec<IVec3> = Vec::new();
         for i in 0..sim.voxels.len() {
             if sim.voxels[i] != Voxel::Air {
@@ -167,6 +161,58 @@ pub fn remesh_voxels(
                 .insert(Collider::voxels(Vec3::splat(VOXEL_SIZE), &voxel_positions));
         }
     }
+}
+
+/// Texture scale: how many world units per full texture repeat.
+const UV_SCALE: f32 = 1.0;
+
+fn build_flat_mesh(buffer: &SurfaceNetsBuffer) -> Mesh {
+    let num_tris = buffer.indices.len() / 3;
+    let mut positions = Vec::with_capacity(num_tris * 3);
+    let mut normals = Vec::with_capacity(num_tris * 3);
+    let mut uvs = Vec::with_capacity(num_tris * 3);
+
+    for tri in 0..num_tris {
+        let i0 = buffer.indices[tri * 3] as usize;
+        let i1 = buffer.indices[tri * 3 + 1] as usize;
+        let i2 = buffer.indices[tri * 3 + 2] as usize;
+
+        let p0 = Vec3::from(buffer.positions[i0]);
+        let p1 = Vec3::from(buffer.positions[i1]);
+        let p2 = Vec3::from(buffer.positions[i2]);
+
+        let face_normal = (p1 - p0).cross(p2 - p0).normalize_or_zero();
+        let n = face_normal.to_array();
+
+        // scuffed triplanar mapping
+        // just take the best normal direction and take the uv related to that plane
+        // e.g. a high y means xz, a high z means yx, a high x means yz
+        let abs_n = face_normal.abs();
+        for p in [p0, p1, p2] {
+            positions.push(p.to_array());
+            normals.push(n);
+            let uv = if abs_n.x >= abs_n.y && abs_n.x >= abs_n.z {
+                // high x, yz plane
+                [p.y / UV_SCALE, p.z / UV_SCALE]
+            } else if abs_n.y >= abs_n.z && abs_n.y >= abs_n.x {
+                // high y, xz plane
+                [p.x / UV_SCALE, p.z / UV_SCALE]
+            } else {
+                // high z, xy plane
+                [p.x / UV_SCALE, p.y / UV_SCALE]
+            };
+            uvs.push(uv);
+        }
+    }
+
+    let mut mesh = Mesh::new(
+        PrimitiveTopology::TriangleList,
+        RenderAssetUsages::default(),
+    );
+    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    mesh
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -284,27 +330,34 @@ pub fn add_voxel_children(
     mut commands: Commands,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut sim: Query<&mut VoxelEntities>,
+    assets: Res<AssetServer>,
 ) {
     let Ok(mut entities) = sim.get_mut(on.entity) else {
         return;
     };
 
     for voxel in &[Voxel::Sand, Voxel::Dirt] {
-        let material = match voxel {
-            Voxel::Dirt => StandardMaterial {
-                base_color: Color::srgb(64.0 / 255.0, 41.0 / 255.0, 5.0 / 255.0),
-                perceptual_roughness: 1.0,
-                reflectance: 0.2,
-                ..default()
-            },
-            Voxel::Sand => StandardMaterial {
-                base_color: Color::srgb(0.8, 0.8, 0.8),
-                perceptual_roughness: 1.0,
-                reflectance: 0.2,
-                ..default()
-            },
-            _ => continue,
-        };
+        let material =
+            match voxel {
+                Voxel::Dirt => StandardMaterial {
+                    base_color_texture: Some(
+                        assets.load("textures/darkmod/nature/dirt/dirt_002_dark.png"),
+                    ),
+                    normal_map_texture: Some(assets.load(
+                        "textures/darkmod/nature/dirt/dirt_002_dark/dirt_002_dark_normal.png",
+                    )),
+                    perceptual_roughness: 0.9,
+                    reflectance: 0.2,
+                    ..default()
+                },
+                Voxel::Sand => StandardMaterial {
+                    base_color: Color::srgb(0.8, 0.8, 0.8),
+                    perceptual_roughness: 1.0,
+                    reflectance: 0.2,
+                    ..default()
+                },
+                _ => continue,
+            };
 
         let voxel_id = commands
             .spawn((
