@@ -59,7 +59,7 @@ pub(super) fn plugin(app: &mut App) {
     app.insert_gizmo_config(
         PhysicsGizmos::default(),
         GizmoConfig {
-            enabled: true,
+            enabled: false,
             render_layers: RenderLayers::from(RenderLayer::GIZMO3),
             ..default()
         },

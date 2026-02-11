@@ -3,7 +3,9 @@ title: Lefty_Larry
 Lefty Larry: Look at who's slackin'
 -> What was I supposed to do again?
   Lefty Larry: Seriously? Goldfish here huh? We gotta dig up the dirt to make more room. We'll have a lot of bodies rolling in soon, big moves coming from the top.
--> Alright, fine.
+  -> Alright, fine.
+  <<jump Quit>>
+-> I'll get back to it.
  <<jump Quit>>
 ===
 

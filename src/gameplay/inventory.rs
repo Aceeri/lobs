@@ -24,7 +24,11 @@ pub fn plugin(app: &mut App) {
     app.add_systems(OnEnter(Screen::Gameplay), spawn_inventory_hud);
     app.add_systems(
         Update,
-        (update_inventory_hud, update_held_item).run_if(resource_changed::<Inventory>),
+        update_inventory_hud.run_if(resource_changed::<Inventory>),
+    );
+    app.add_systems(
+        Update,
+        update_held_item.run_if(resource_changed::<Inventory>.or(held_item_missing)),
     );
     app.add_systems(Update, (use_tool, animate_shovel_swing));
     app.add_observer(on_select_slot::<SelectSlot1, 0>);
@@ -47,7 +51,7 @@ impl Default for Inventory {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub(crate) enum Item {
     Shovel,
     Gun,
@@ -125,6 +129,7 @@ fn use_tool(
             cooldown.ready = false;
             if let Ok(mut swing) = shovel.single_mut() {
                 swing.timer.reset();
+                swing.returning = false;
             }
         }
         _ => {}
@@ -288,13 +293,33 @@ impl FromWorld for InventoryAssets {
 #[derive(Component)]
 struct HeldItemModel;
 
+fn held_item_missing(inventory: Res<Inventory>, existing: Query<(), With<HeldItemModel>>) -> bool {
+    inventory.slots[inventory.active_slot].is_some() && existing.is_empty()
+}
+
 const SHOVEL_SWING_X_END: f32 = 0.0;
 const SHOVEL_SWING_X_START: f32 = -1.7;
 const SHOVEL_REST_ROTATION: Vec3 = Vec3::new(SHOVEL_SWING_X_START, 3.00, -1.7);
+const SHOVEL_SWING_DURATION: f32 = DIG_COOLDOWN * 0.7;
+const SHOVEL_RETURN_SPEED: f32 = 12.0;
 
 #[derive(Component)]
 struct ShovelSwing {
     timer: Timer,
+    returning: bool,
+    current_x: f32,
+}
+
+impl Default for ShovelSwing {
+    fn default() -> Self {
+        let mut timer = Timer::from_seconds(SHOVEL_SWING_DURATION, TimerMode::Once);
+        timer.tick(timer.duration());
+        Self {
+            timer,
+            returning: true,
+            current_x: SHOVEL_SWING_X_START,
+        }
+    }
 }
 
 fn update_held_item(
@@ -303,14 +328,21 @@ fn update_held_item(
     existing: Query<Entity, With<HeldItemModel>>,
     player_camera: Single<Entity, With<PlayerCamera>>,
     inventory_assets: Res<InventoryAssets>,
+    // mut last_held: Local<Option<Item>>,
 ) {
-    // Despawn any existing held item
+    let active_item = &inventory.slots[inventory.active_slot];
+    let camera_entity = *player_camera;
+    // match (*last_held, active_item) {
+    //     (Some(item), Some(active)) if *active != item => {}
+    //     (None, Some(_)) => {}
+    //     _ => return,
+    // }
+
+    // *last_held = active_item.clone();
+
     for entity in &existing {
         commands.entity(entity).despawn();
     }
-
-    let active_item = &inventory.slots[inventory.active_slot];
-    let camera_entity = *player_camera;
 
     match active_item {
         Some(Item::Shovel) => {
@@ -318,9 +350,7 @@ fn update_held_item(
                 .spawn((
                     Name::new("Held Shovel"),
                     HeldItemModel,
-                    ShovelSwing {
-                        timer: Timer::from_seconds(DIG_COOLDOWN, TimerMode::Once),
-                    },
+                    ShovelSwing::default(),
                     SceneRoot(inventory_assets.shovel.clone()),
                     Transform {
                         translation: Vec3::new(0.4, -0.2, -0.5),
@@ -357,16 +387,32 @@ fn update_held_item(
     }
 }
 
+// i love hardcoding animations c:
 fn animate_shovel_swing(time: Res<Time>, mut query: Query<(&mut ShovelSwing, &mut Transform)>) {
     for (mut swing, mut transform) in &mut query {
         swing.timer.tick(time.delta());
-        let t = (swing.timer.elapsed_secs() / swing.timer.duration().as_secs_f32()).clamp(0.0, 1.0);
-        // Lerp x rotation from start to end, then snap back to rest when timer finishes
-        let x = if swing.timer.just_finished() || t >= 1.0 {
-            SHOVEL_REST_ROTATION.x
+
+        let x = if swing.returning {
+            let target = SHOVEL_SWING_X_START;
+            swing.current_x += (target - swing.current_x) * SHOVEL_RETURN_SPEED * time.delta_secs();
+            if (swing.current_x - target).abs() < 0.01 {
+                swing.current_x = target;
+            }
+            swing.current_x
+        } else if swing.timer.just_finished()
+            || swing.timer.elapsed_secs() >= swing.timer.duration().as_secs_f32()
+        {
+            swing.returning = true;
+            swing.current_x = SHOVEL_SWING_X_END;
+            SHOVEL_SWING_X_END
         } else {
-            SHOVEL_SWING_X_START + (SHOVEL_SWING_X_END - SHOVEL_SWING_X_START) * t
+            let t =
+                (swing.timer.elapsed_secs() / swing.timer.duration().as_secs_f32()).clamp(0.0, 1.0);
+            let x = SHOVEL_SWING_X_START + (SHOVEL_SWING_X_END - SHOVEL_SWING_X_START) * t;
+            swing.current_x = x;
+            x
         };
+
         transform.rotation = Quat::from_euler(
             EulerRot::XYZ,
             x,
