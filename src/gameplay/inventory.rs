@@ -114,7 +114,7 @@ fn on_select_slot<Action: InputAction, const N: usize>(
 pub(crate) struct UseTool;
 
 const DIG_DISTANCE: f32 = 5.0;
-pub const DIG_RADIUS: f32 = 2.0;
+pub const DIG_RADIUS: f32 = 3.0;
 const DIG_COOLDOWN: f32 = 0.5;
 
 const GUN_DISTANCE: f32 = 50.0;

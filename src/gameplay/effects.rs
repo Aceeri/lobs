@@ -1,14 +1,17 @@
 use bevy::prelude::*;
 use bevy_hanabi::prelude::{Gradient as HanabiGradient, *};
 
-use crate::gameplay::{
-    dig::VOXEL_SIZE,
-    inventory::{AnimationState, DIG_RADIUS},
+use crate::{
+    asset_tracking::LoadResource,
+    gameplay::{
+        dig::VOXEL_SIZE,
+        inventory::{AnimationState, DIG_RADIUS},
+    },
 };
 
 pub(super) fn plugin(app: &mut App) {
-    app.init_resource::<DigParticleEffect>();
-    app.init_resource::<MuzzleFlashEffect>();
+    app.load_resource::<DigParticleEffect>();
+    app.load_resource::<MuzzleFlashEffect>();
 
     app.add_systems(Update, update_particle_effect_state);
     app.add_observer(start_effect_disabled);
@@ -59,7 +62,8 @@ fn start_effect_disabled(
     effect_spawner.active = false;
 }
 
-#[derive(Resource)]
+#[derive(Resource, Asset, Clone, Reflect)]
+#[reflect(Resource)]
 pub struct DigParticleEffect(pub Handle<EffectAsset>);
 
 impl FromWorld for DigParticleEffect {
@@ -120,7 +124,8 @@ impl FromWorld for DigParticleEffect {
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Asset, Clone, Reflect)]
+#[reflect(Resource)]
 pub struct MuzzleFlashEffect(pub Handle<EffectAsset>);
 
 impl FromWorld for MuzzleFlashEffect {
