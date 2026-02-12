@@ -6,6 +6,50 @@ use crate::gameplay::{dig::VOXEL_SIZE, inventory::DIG_RADIUS};
 pub(super) fn plugin(app: &mut App) {
     app.init_resource::<DigParticleEffect>();
     app.init_resource::<MuzzleFlashEffect>();
+
+    app.add_systems(Update, update_particle_effect_state);
+    app.add_observer(start_effect_disabled);
+}
+
+#[derive(Component, Reflect)]
+#[relationship(relationship_target = ParticleEffects)]
+pub struct ParticleEffectOf(pub Entity);
+
+#[derive(Component, Reflect)]
+#[relationship_target(relationship = ParticleEffectOf)]
+pub struct ParticleEffects(Entity);
+
+impl ParticleEffects {
+    pub fn entity(&self) -> Entity {
+        self.0
+    }
+}
+
+fn update_particle_effect_state(
+    input: Res<ButtonInput<MouseButton>>,
+    children: Query<&ParticleEffects>,
+    mut effects: Query<&mut EffectSpawner, With<ParticleEffectOf>>,
+) {
+    for child in children {
+        let Ok(mut effect) = effects.get_mut(child.0) else {
+            continue;
+        };
+        if input.just_pressed(MouseButton::Left) {
+            effect.active = true;
+        } else if input.just_released(MouseButton::Left) {
+            effect.active = false;
+        }
+    }
+}
+
+fn start_effect_disabled(
+    trigger: On<Add, EffectSpawner>,
+    mut effects: Query<&mut EffectSpawner, With<ParticleEffectOf>>,
+) {
+    let Ok(mut effect_spawner) = effects.get_mut(trigger.entity) else {
+        return;
+    };
+    effect_spawner.active = false;
 }
 
 #[derive(Resource)]

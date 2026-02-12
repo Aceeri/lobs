@@ -7,14 +7,14 @@ use bevy::{
 };
 use bevy_ahoy::CharacterController;
 use bevy_enhanced_input::prelude::*;
-use bevy_hanabi::{EffectSpawner, ParticleEffect};
+use bevy_hanabi::ParticleEffect;
 
 use crate::{
     RenderLayer,
     asset_tracking::LoadResource,
     gameplay::{
         dig::{VOXEL_SIZE, Voxel, VoxelSim},
-        effects::{DigParticleEffect, MuzzleFlashEffect},
+        effects::{DigParticleEffect, MuzzleFlashEffect, ParticleEffectOf, ParticleEffects},
         npc::Health,
         player::camera::PlayerCamera,
     },
@@ -43,7 +43,6 @@ pub fn plugin(app: &mut App) {
                 (use_shovel, use_tommygun).run_if(input_pressed(MouseButton::Left)),
             )
                 .chain(),
-            update_particle_effect_state,
             animate_shovel_swing,
             animate_gun_recoil,
         ),
@@ -51,7 +50,6 @@ pub fn plugin(app: &mut App) {
     app.add_observer(on_select_slot::<SelectSlot1, 0>);
     app.add_observer(on_select_slot::<SelectSlot2, 1>);
     app.add_observer(on_select_slot::<SelectSlot3, 2>);
-    app.add_observer(start_effect_disabled);
 }
 
 #[derive(Resource)]
@@ -177,23 +175,20 @@ fn tick_item_cooldowns(time: Res<Time>, cooldowns: Query<&mut ItemCooldown>) {
 }
 
 fn use_shovel(
-    mut commands: Commands,
     player: Single<&GlobalTransform, With<PlayerCamera>>,
     spatial_query: SpatialQuery,
     mut voxel_sims: Query<(&mut VoxelSim, &GlobalTransform)>,
-    dig_effect: Res<DigParticleEffect>,
-    shovel: Single<(Entity, &mut ItemCooldown, &mut ShovelSwing)>,
+    shovel: Single<(&mut ItemCooldown, &mut ShovelSwing, &ParticleEffects)>,
+    mut effects: Query<&mut Transform, With<ParticleEffectOf>>,
 ) {
-    let (shovel, mut cooldown, mut swing) = shovel.into_inner();
+    let (mut cooldown, mut swing, effect) = shovel.into_inner();
     if !cooldown.ready {
         return;
     }
-    if let Some(hit_point) = dig_voxel(&player, &spatial_query, &mut voxel_sims) {
-        commands.spawn((
-            ParticleEffect::new(dig_effect.0.clone()),
-            RenderLayers::from(RenderLayer::DEFAULT),
-            Transform::from_translation(hit_point),
-        ));
+    if let Ok(mut transform) = effects.get_mut(effect.entity())
+        && let Some(hit_point) = dig_voxel(&player, &spatial_query, &mut voxel_sims)
+    {
+        *transform = Transform::from_translation(hit_point);
     }
     cooldown.timer.reset();
     cooldown.ready = false;
@@ -201,44 +196,9 @@ fn use_shovel(
     swing.returning = false;
 }
 
-#[derive(Component, Reflect)]
-#[relationship(relationship_target = ParticleEffects)]
-pub struct ParticleEffectOf(pub Entity);
-
-#[derive(Component, Reflect)]
-#[relationship_target(relationship = ParticleEffectOf)]
-pub struct ParticleEffects(Entity);
-
-fn update_particle_effect_state(
-    input: Res<ButtonInput<MouseButton>>,
-    children: Query<&ParticleEffects>,
-    mut effects: Query<&mut EffectSpawner, With<ParticleEffectOf>>,
-) {
-    for child in children {
-        let Ok(mut effect) = effects.get_mut(child.0) else {
-            continue;
-        };
-        if input.just_pressed(MouseButton::Left) {
-            effect.active = true;
-        } else if input.just_released(MouseButton::Left) {
-            effect.active = false;
-        }
-    }
-}
-fn start_effect_disabled(
-    trigger: On<Add, EffectSpawner>,
-    mut effects: Query<&mut EffectSpawner, With<ParticleEffectOf>>,
-) {
-    let Ok(mut effect_spawner) = effects.get_mut(trigger.entity) else {
-        return;
-    };
-    effect_spawner.active = false;
-}
-
 // run if mouse button left pressed
 fn use_tommygun(
     mut commands: Commands,
-    input: Res<ButtonInput<MouseButton>>,
     player: Single<&GlobalTransform, With<PlayerCamera>>,
     mut health_query: Query<&mut Health>,
     spatial_query: SpatialQuery,
@@ -268,107 +228,12 @@ fn use_tommygun(
             }
         }
     }
-    // maybe parent this to the held gun?
-    let muzzle_pos = origin + *direction * 1.5;
 
     cooldown.timer.reset();
     cooldown.ready = false;
     recoil.timer.reset();
     recoil.returning = false;
 }
-
-// fn use_tool(
-//     time: Res<Time>,
-//     inventory: Res<Inventory>,
-//     mouse: Res<ButtonInput<MouseButton>>,
-//     player: Single<&GlobalTransform, With<PlayerCamera>>,
-//     spatial_query: SpatialQuery,
-//     mut voxel_sims: Query<(&mut VoxelSim, &GlobalTransform)>,
-//     mut shovel: Query<&mut ShovelSwing>,
-//     mut gun_recoil: Query<&mut GunRecoil>,
-//     mut health_query: Query<&mut Health>,
-//     mut commands: Commands,
-//     dig_effect: Res<DigParticleEffect>,
-//     muzzle_effect: Res<MuzzleFlashEffect>,
-// ) {
-//     dig_cooldown.timer.tick(time.delta());
-//     if dig_cooldown.timer.just_finished() {
-//         dig_cooldown.ready = true;
-//     }
-//     gun_cooldown.timer.tick(time.delta());
-//     if gun_cooldown.timer.just_finished() {
-//         gun_cooldown.ready = true;
-//     }
-
-//     if !mouse.pressed(MouseButton::Left) {
-//         return;
-//     }
-
-//     let active_item = &inventory.slots[inventory.active_slot];
-//     match active_item {
-//         Some(Item::Shovel) => {
-//             if !dig_cooldown.ready {
-//                 return;
-//             }
-//             if let Some(hit_point) = dig_voxel(&player, &spatial_query, &mut voxel_sims) {
-//                 commands.spawn((
-//                     ParticleEffect::new(dig_effect.0.clone()),
-//                     RenderLayers::from(RenderLayer::DEFAULT),
-//                     Transform::from_translation(hit_point),
-//                 ));
-//             }
-//             dig_cooldown.timer.reset();
-//             dig_cooldown.ready = false;
-//             if let Ok(mut swing) = shovel.single_mut() {
-//                 swing.timer.reset();
-//                 swing.returning = false;
-//             }
-//         }
-//         Some(Item::Gun) => {
-//             if !gun_cooldown.ready {
-//                 return;
-//             }
-
-//             let camera_transform = player.compute_transform();
-//             let origin = camera_transform.translation;
-//             let direction = camera_transform.forward();
-
-//             if let Some(hit) = spatial_query.cast_ray(
-//                 origin,
-//                 direction,
-//                 GUN_DISTANCE,
-//                 true,
-//                 &SpatialQueryFilter::from_mask([
-//                     CollisionLayer::Default,
-//                     CollisionLayer::Character,
-//                 ]),
-//             ) {
-//                 if let Ok(mut health) = health_query.get_mut(hit.entity) {
-//                     health.0 -= GUN_DAMAGE;
-//                     if health.0 <= 0.0 {
-//                         commands.entity(hit.entity).despawn();
-//                     }
-//                 }
-//             }
-
-//             // maybe parent this to the held gun?
-//             let muzzle_pos = origin + *direction * 1.5;
-//             commands.spawn((
-//                 ParticleEffect::new(muzzle_effect.0.clone()),
-//                 RenderLayers::from(RenderLayer::DEFAULT),
-//                 Transform::from_translation(muzzle_pos),
-//             ));
-
-//             gun_cooldown.timer.reset();
-//             gun_cooldown.ready = false;
-//             if let Ok(mut recoil) = gun_recoil.single_mut() {
-//                 recoil.timer.reset();
-//                 recoil.returning = false;
-//             }
-//         }
-//         None => {}
-//     }
-// }
 
 /// Returns the world-space hit point if voxels were dug.
 fn dig_voxel(
@@ -571,6 +436,7 @@ fn update_held_item(
     player_camera: Single<Entity, With<PlayerCamera>>,
     inventory_assets: Res<InventoryAssets>,
     muzzle_effect: Res<MuzzleFlashEffect>,
+    dig_effect: Res<DigParticleEffect>,
     // mut last_held: Local<Option<Item>>,
 ) {
     let camera_entity = *player_camera;
@@ -600,6 +466,14 @@ fn update_held_item(
                 ))
                 .observe(configure_held_item_view_model)
                 .id();
+
+            commands.spawn((
+                ParticleEffect::new(dig_effect.0.clone()),
+                RenderLayers::from(RenderLayer::DEFAULT),
+                Transform::default(),
+                ParticleEffectOf(held),
+            ));
+
             commands.entity(camera_entity).add_child(held);
         }
         Some(Item::Gun) => {
