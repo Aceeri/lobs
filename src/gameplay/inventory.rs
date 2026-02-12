@@ -6,14 +6,15 @@ use bevy::{
 };
 use bevy_ahoy::CharacterController;
 use bevy_enhanced_input::prelude::*;
-use bevy_hanabi::prelude::{Gradient as HanabiGradient, *};
+use bevy_hanabi::ParticleEffect;
 
 use crate::{
     RenderLayer,
     asset_tracking::LoadResource,
     gameplay::{
         dig::{VOXEL_SIZE, Voxel, VoxelSim},
-        npc::{Body, Health},
+        effects::{DigParticleEffect, MuzzleFlashEffect},
+        npc::Health,
         player::camera::PlayerCamera,
     },
     screens::Screen,
@@ -22,10 +23,6 @@ use crate::{
 
 pub fn plugin(app: &mut App) {
     app.init_resource::<Inventory>();
-    app.init_resource::<DigCooldown>();
-    app.init_resource::<GunCooldown>();
-    app.load_resource::<DigParticleEffect>();
-    app.load_resource::<MuzzleFlashEffect>();
     app.load_resource::<InventoryAssets>();
     app.add_systems(OnEnter(Screen::Gameplay), spawn_inventory_hud);
     app.add_systems(
@@ -36,7 +33,15 @@ pub fn plugin(app: &mut App) {
         Update,
         update_held_item.run_if(resource_changed::<Inventory>.or(held_item_missing)),
     );
-    app.add_systems(Update, (use_tool, animate_shovel_swing, animate_gun_recoil));
+
+    app.add_systems(
+        Update,
+        (
+            (tick_item_cooldowns, (use_shovel, use_tommygun)).chain(),
+            animate_shovel_swing,
+            animate_gun_recoil,
+        ),
+    );
     app.add_observer(on_select_slot::<SelectSlot1, 0>);
     app.add_observer(on_select_slot::<SelectSlot2, 1>);
     app.add_observer(on_select_slot::<SelectSlot3, 2>);
@@ -104,7 +109,7 @@ fn on_select_slot<Action: InputAction, const N: usize>(
 pub(crate) struct UseTool;
 
 const DIG_DISTANCE: f32 = 5.0;
-const DIG_RADIUS: f32 = 3.0;
+pub const DIG_RADIUS: f32 = 2.0;
 const DIG_COOLDOWN: f32 = 0.5;
 
 const GUN_DISTANCE: f32 = 50.0;
@@ -115,29 +120,19 @@ const GUN_RECOIL_Z: f32 = 0.3;
 const GUN_RETURN_SPEED: f32 = 20.0;
 const GUN_REST_TRANSLATION: Vec3 = Vec3::new(1.5, -0.3, -2.0);
 
-#[derive(Resource)]
-struct DigCooldown {
+#[derive(Component)]
+struct ItemCooldown {
     timer: Timer,
     ready: bool,
 }
-
-impl Default for DigCooldown {
-    fn default() -> Self {
+impl ItemCooldown {
+    pub fn shovel() -> Self {
         Self {
             timer: Timer::from_seconds(DIG_COOLDOWN, TimerMode::Once),
             ready: true,
         }
     }
-}
-
-#[derive(Resource)]
-struct GunCooldown {
-    timer: Timer,
-    ready: bool,
-}
-
-impl Default for GunCooldown {
-    fn default() -> Self {
+    pub fn gun() -> Self {
         Self {
             timer: Timer::from_seconds(GUN_COOLDOWN, TimerMode::Once),
             ready: true,
@@ -146,6 +141,7 @@ impl Default for GunCooldown {
 }
 
 #[derive(Component)]
+#[require(ItemCooldown = ItemCooldown::gun())]
 struct GunRecoil {
     timer: Timer,
     returning: bool,
@@ -164,269 +160,180 @@ impl Default for GunRecoil {
     }
 }
 
-#[derive(Resource, Asset, Clone, Reflect)]
-#[reflect(Resource)]
-struct DigParticleEffect(Handle<EffectAsset>);
-
-impl FromWorld for DigParticleEffect {
-    fn from_world(world: &mut World) -> Self {
-        let mut effects = world.resource_mut::<Assets<EffectAsset>>();
-
-        let writer = ExprWriter::new();
-
-        let init_vel = SetAttributeModifier::new(
-            Attribute::VELOCITY,
-            writer
-                .lit(Vec3::new(0.0, 2.0, 0.0))
-                .uniform(writer.lit(Vec3::new(0.0, 3.0, 0.0)))
-                .expr(),
-        );
-
-        let mut module = writer.finish();
-
-        let init_pos = SetPositionSphereModifier {
-            center: module.lit(Vec3::ZERO),
-            radius: module.lit(DIG_RADIUS * VOXEL_SIZE),
-            dimension: ShapeDimension::Volume,
-        };
-
-        let lifetime = SetAttributeModifier::new(Attribute::LIFETIME, module.lit(0.4));
-
-        let accel = AccelModifier::new(module.lit(Vec3::new(0.0, -9.8, 0.0)));
-
-        let mut gradient = HanabiGradient::new();
-        gradient.add_key(0.0, Vec4::new(0.55, 0.35, 0.15, 1.0));
-        gradient.add_key(0.7, Vec4::new(0.4, 0.25, 0.1, 0.8));
-        gradient.add_key(1.0, Vec4::new(0.3, 0.2, 0.05, 0.0));
-
-        let mut size_curve = HanabiGradient::new();
-        size_curve.add_key(0.0, Vec3::splat(0.08));
-        size_curve.add_key(1.0, Vec3::splat(0.02));
-
-        let effect = EffectAsset::new(256, SpawnerSettings::once(20.0.into()), module)
-            .with_name("DigDirt")
-            .init(init_pos)
-            .init(init_vel)
-            .init(lifetime)
-            .update(accel)
-            .render(ColorOverLifetimeModifier {
-                gradient,
-                ..default()
-            })
-            .render(SizeOverLifetimeModifier {
-                gradient: size_curve,
-                screen_space_size: false,
-            })
-            .render(OrientModifier {
-                rotation: None,
-                mode: OrientMode::FaceCameraPosition,
-            });
-
-        Self(effects.add(effect))
+fn tick_item_cooldowns(time: Res<Time>, cooldowns: Query<&mut ItemCooldown>) {
+    for mut cooldown in cooldowns {
+        cooldown.timer.tick(time.delta());
+        if cooldown.timer.just_finished() {
+            cooldown.ready = true;
+        }
     }
 }
 
-#[derive(Resource, Asset, Clone, Reflect)]
-#[reflect(Resource)]
-struct MuzzleFlashEffect(Handle<EffectAsset>);
-
-impl FromWorld for MuzzleFlashEffect {
-    fn from_world(world: &mut World) -> Self {
-        let mut effects = world.resource_mut::<Assets<EffectAsset>>();
-
-        let writer = ExprWriter::new();
-
-        let mean_vel = writer.lit(Vec3::new(0.0, 0.0, -8.0));
-        let sd_vel = writer.lit(Vec3::new(3.0, 3.0, 4.0));
-        let init_vel =
-            SetAttributeModifier::new(Attribute::VELOCITY, mean_vel.normal(sd_vel).expr());
-
-        let mut module = writer.finish();
-
-        let init_pos = SetPositionSphereModifier {
-            center: module.lit(Vec3::ZERO),
-            radius: module.lit(0.05),
-            dimension: ShapeDimension::Volume,
-        };
-
-        let lifetime = SetAttributeModifier::new(Attribute::LIFETIME, module.lit(0.15));
-
-        let mut gradient = HanabiGradient::new();
-        gradient.add_key(0.0, Vec4::new(1.0, 0.9, 0.3, 1.0));
-        gradient.add_key(0.4, Vec4::new(1.0, 0.6, 0.1, 0.8));
-        gradient.add_key(1.0, Vec4::new(0.8, 0.3, 0.0, 0.0));
-
-        let mut size_curve = HanabiGradient::new();
-        size_curve.add_key(0.0, Vec3::splat(0.06));
-        size_curve.add_key(1.0, Vec3::splat(0.01));
-
-        // let effect = EffectAsset::new(128, SpawnerSettings::once(10.0.into()), module)
-        //     .with_name("MuzzleFlash")
-        //     .with_alpha_mode(bevy_hanabi::AlphaMode::Add)
-        //     .init(init_pos)
-        //     .init(init_vel)
-        //     .init(lifetime)
-        //     .render(ColorOverLifetimeModifier {
-        //         gradient,
-        //         ..default()
-        //     })
-        //     .render(SizeOverLifetimeModifier {
-        //         gradient: size_curve,
-        //         screen_space_size: false,
-        //     });
-
-        // Self(effects.add(effect))
-        Self(effects.add(fire_effect()))
-    }
-}
-
-pub fn fire_effect() -> EffectAsset {
-    let mut color_gradient1 = HanabiGradient::new();
-    color_gradient1.add_key(0.0, Vec4::splat(1.0));
-    color_gradient1.add_key(0.1, Vec4::new(1.0, 1.0, 0.0, 1.0));
-    color_gradient1.add_key(0.4, Vec4::new(1.0, 0.0, 0.0, 1.0));
-    color_gradient1.add_key(1.0, Vec4::splat(0.0));
-    let mut size_gradient1 = HanabiGradient::new();
-    size_gradient1.add_key(0.0, Vec3::splat(0.1));
-    size_gradient1.add_key(0.5, Vec3::splat(0.5));
-    size_gradient1.add_key(0.8, Vec3::splat(0.08));
-    size_gradient1.add_key(1.0, Vec3::splat(0.0));
-
-    let writer1 = ExprWriter::new();
-
-    let age1 = writer1.lit(0.).expr();
-    let init_age1 = SetAttributeModifier::new(Attribute::AGE, age1);
-
-    let lifetime1 = writer1.lit(5.).expr();
-    let init_lifetime1 = SetAttributeModifier::new(Attribute::LIFETIME, lifetime1);
-
-    // Add constant downward acceleration to simulate gravity
-    let accel1 = writer1.lit(-Vec3::Y * 3.).expr();
-    let update_accel1 = AccelModifier::new(accel1);
-
-    let init_pos1 = SetPositionCone3dModifier {
-        base_radius: writer1.lit(1.).expr(),
-        top_radius: writer1.lit(1.).expr(),
-        height: writer1.lit(0.5).expr(),
-        dimension: ShapeDimension::Surface,
-    };
-
-    EffectAsset::new(32768, SpawnerSettings::rate(100.0.into()), writer1.finish())
-        .with_name("emit:rate")
-        .init(init_pos1)
-        // Make spawned particles move away from the emitter origin
-        //.init(init_vel1)
-        .init(init_age1)
-        .init(init_lifetime1)
-        .update(update_accel1)
-        .render(ColorOverLifetimeModifier::new(color_gradient1))
-        .render(SizeOverLifetimeModifier {
-            gradient: size_gradient1,
-            screen_space_size: false,
-        })
-        .render(OrientModifier::new(OrientMode::FaceCameraPosition))
-}
-
-fn use_tool(
-    time: Res<Time>,
-    inventory: Res<Inventory>,
-    mouse: Res<ButtonInput<MouseButton>>,
-    mut dig_cooldown: ResMut<DigCooldown>,
-    mut gun_cooldown: ResMut<GunCooldown>,
+fn use_shovel(
+    mut commands: Commands,
     player: Single<&GlobalTransform, With<PlayerCamera>>,
     spatial_query: SpatialQuery,
     mut voxel_sims: Query<(&mut VoxelSim, &GlobalTransform)>,
-    mut shovel: Query<&mut ShovelSwing>,
-    mut gun_recoil: Query<&mut GunRecoil>,
-    mut health_query: Query<&mut Health>,
-    mut commands: Commands,
     dig_effect: Res<DigParticleEffect>,
+    shovel: Single<(Entity, &mut ItemCooldown, &mut ShovelSwing)>,
+) {
+    let (shovel, mut cooldown, mut swing) = shovel.into_inner();
+    if !cooldown.ready {
+        return;
+    }
+    if let Some(hit_point) = dig_voxel(&player, &spatial_query, &mut voxel_sims) {
+        commands.spawn((
+            ParticleEffect::new(dig_effect.0.clone()),
+            RenderLayers::from(RenderLayer::DEFAULT),
+            Transform::from_translation(hit_point),
+        ));
+    }
+    cooldown.timer.reset();
+    cooldown.ready = false;
+    swing.timer.reset();
+    swing.returning = false;
+}
+
+// run if mouse button left pressed
+fn use_tommygun(
+    mut commands: Commands,
+    time: Res<Time>,
+    player: Single<&GlobalTransform, With<PlayerCamera>>,
+    mut health_query: Query<&mut Health>,
+    spatial_query: SpatialQuery,
+    mut gun: Single<(Entity, &mut ItemCooldown, &mut GunRecoil)>,
     muzzle_effect: Res<MuzzleFlashEffect>,
 ) {
-    dig_cooldown.timer.tick(time.delta());
-    if dig_cooldown.timer.just_finished() {
-        dig_cooldown.ready = true;
-    }
-    gun_cooldown.timer.tick(time.delta());
-    if gun_cooldown.timer.just_finished() {
-        gun_cooldown.ready = true;
-    }
+    let (gun, mut cooldown, mut recoil) = gun.into_inner();
 
-    if !mouse.pressed(MouseButton::Left) {
+    if !cooldown.ready {
         return;
     }
 
-    match inventory.active_item() {
-        Some(Item::Shovel) => {
-            if !dig_cooldown.ready {
-                return;
-            }
-            if let Some(hit_point) = dig_voxel(&player, &spatial_query, &mut voxel_sims) {
-                commands.spawn((
-                    ParticleEffect::new(dig_effect.0.clone()),
-                    RenderLayers::from(RenderLayer::DEFAULT),
-                    Transform::from_translation(hit_point),
-                ));
-            }
-            dig_cooldown.timer.reset();
-            dig_cooldown.ready = false;
-            if let Ok(mut swing) = shovel.single_mut() {
-                swing.timer.reset();
-                swing.returning = false;
+    let camera_transform = player.compute_transform();
+    let origin = camera_transform.translation;
+    let direction = camera_transform.forward();
+
+    if let Some(hit) = spatial_query.cast_ray(
+        origin,
+        direction,
+        GUN_DISTANCE,
+        true,
+        &SpatialQueryFilter::from_mask([CollisionLayer::Default, CollisionLayer::Character]),
+    ) {
+        if let Ok(mut health) = health_query.get_mut(hit.entity) {
+            health.0 -= GUN_DAMAGE;
+            if health.0 <= 0.0 {
+                commands.entity(hit.entity).despawn();
             }
         }
-        Some(Item::Gun) => {
-            if !gun_cooldown.ready {
-                return;
-            }
-
-            let camera_transform = player.compute_transform();
-            let origin = camera_transform.translation;
-            let direction = camera_transform.forward();
-
-            if let Some(hit) = spatial_query.cast_ray(
-                origin,
-                direction,
-                GUN_DISTANCE,
-                true,
-                &SpatialQueryFilter::from_mask([
-                    CollisionLayer::Default,
-                    CollisionLayer::Character,
-                ]),
-            ) {
-                if let Ok(mut health) = health_query.get_mut(hit.entity) {
-                    health.0 -= GUN_DAMAGE;
-                    if health.0 <= 0.0 {
-                        commands.entity(hit.entity).remove::<CharacterController>().insert((
-                            Body,
-                            RigidBody::Dynamic,
-                            CollisionLayers::new(
-                                [CollisionLayer::Character, CollisionLayer::Prop],
-                                [CollisionLayer::Default, CollisionLayer::Prop],
-                            ),
-                        ));
-                    }
-                }
-            }
-
-            // maybe parent this to the held gun?
-            let muzzle_pos = origin + *direction * 1.5;
-            commands.spawn((
-                ParticleEffect::new(muzzle_effect.0.clone()),
-                RenderLayers::from(RenderLayer::DEFAULT),
-                Transform::from_translation(muzzle_pos).with_rotation(camera_transform.rotation),
-            ));
-
-            gun_cooldown.timer.reset();
-            gun_cooldown.ready = false;
-            if let Ok(mut recoil) = gun_recoil.single_mut() {
-                recoil.timer.reset();
-                recoil.returning = false;
-            }
-        }
-        None => {}
     }
+    // maybe parent this to the held gun?
+    let muzzle_pos = origin + *direction * 1.5;
+    commands.spawn((
+        ParticleEffect::new(muzzle_effect.0.clone()),
+        RenderLayers::from(RenderLayer::DEFAULT),
+        Transform::from_translation(muzzle_pos),
+    ));
+
+    cooldown.timer.reset();
+    cooldown.ready = false;
+    recoil.timer.reset();
+    recoil.returning = false;
 }
+
+// fn use_tool(
+//     time: Res<Time>,
+//     inventory: Res<Inventory>,
+//     mouse: Res<ButtonInput<MouseButton>>,
+//     player: Single<&GlobalTransform, With<PlayerCamera>>,
+//     spatial_query: SpatialQuery,
+//     mut voxel_sims: Query<(&mut VoxelSim, &GlobalTransform)>,
+//     mut shovel: Query<&mut ShovelSwing>,
+//     mut gun_recoil: Query<&mut GunRecoil>,
+//     mut health_query: Query<&mut Health>,
+//     mut commands: Commands,
+//     dig_effect: Res<DigParticleEffect>,
+//     muzzle_effect: Res<MuzzleFlashEffect>,
+// ) {
+//     dig_cooldown.timer.tick(time.delta());
+//     if dig_cooldown.timer.just_finished() {
+//         dig_cooldown.ready = true;
+//     }
+//     gun_cooldown.timer.tick(time.delta());
+//     if gun_cooldown.timer.just_finished() {
+//         gun_cooldown.ready = true;
+//     }
+
+//     if !mouse.pressed(MouseButton::Left) {
+//         return;
+//     }
+
+//     let active_item = &inventory.slots[inventory.active_slot];
+//     match active_item {
+//         Some(Item::Shovel) => {
+//             if !dig_cooldown.ready {
+//                 return;
+//             }
+//             if let Some(hit_point) = dig_voxel(&player, &spatial_query, &mut voxel_sims) {
+//                 commands.spawn((
+//                     ParticleEffect::new(dig_effect.0.clone()),
+//                     RenderLayers::from(RenderLayer::DEFAULT),
+//                     Transform::from_translation(hit_point),
+//                 ));
+//             }
+//             dig_cooldown.timer.reset();
+//             dig_cooldown.ready = false;
+//             if let Ok(mut swing) = shovel.single_mut() {
+//                 swing.timer.reset();
+//                 swing.returning = false;
+//             }
+//         }
+//         Some(Item::Gun) => {
+//             if !gun_cooldown.ready {
+//                 return;
+//             }
+
+//             let camera_transform = player.compute_transform();
+//             let origin = camera_transform.translation;
+//             let direction = camera_transform.forward();
+
+//             if let Some(hit) = spatial_query.cast_ray(
+//                 origin,
+//                 direction,
+//                 GUN_DISTANCE,
+//                 true,
+//                 &SpatialQueryFilter::from_mask([
+//                     CollisionLayer::Default,
+//                     CollisionLayer::Character,
+//                 ]),
+//             ) {
+//                 if let Ok(mut health) = health_query.get_mut(hit.entity) {
+//                     health.0 -= GUN_DAMAGE;
+//                     if health.0 <= 0.0 {
+//                         commands.entity(hit.entity).despawn();
+//                     }
+//                 }
+//             }
+
+//             // maybe parent this to the held gun?
+//             let muzzle_pos = origin + *direction * 1.5;
+//             commands.spawn((
+//                 ParticleEffect::new(muzzle_effect.0.clone()),
+//                 RenderLayers::from(RenderLayer::DEFAULT),
+//                 Transform::from_translation(muzzle_pos),
+//             ));
+
+//             gun_cooldown.timer.reset();
+//             gun_cooldown.ready = false;
+//             if let Ok(mut recoil) = gun_recoil.single_mut() {
+//                 recoil.timer.reset();
+//                 recoil.returning = false;
+//             }
+//         }
+//         None => {}
+//     }
+// }
 
 /// Returns the world-space hit point if voxels were dug.
 fn dig_voxel(
@@ -603,6 +510,7 @@ const SHOVEL_SWING_DURATION: f32 = DIG_COOLDOWN * 0.7;
 const SHOVEL_RETURN_SPEED: f32 = 12.0;
 
 #[derive(Component)]
+#[require(ItemCooldown = ItemCooldown::shovel())]
 struct ShovelSwing {
     timer: Timer,
     returning: bool,
@@ -743,7 +651,6 @@ fn animate_gun_recoil(time: Res<Time>, mut query: Query<(&mut GunRecoil, &mut Tr
         transform.translation.z = z;
     }
 }
-
 
 fn configure_held_item_view_model(
     ready: On<SceneInstanceReady>,

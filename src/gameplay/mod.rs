@@ -9,6 +9,7 @@ mod animation;
 pub(crate) mod button;
 pub(crate) mod crosshair;
 pub(crate) mod dig;
+pub(crate) mod effects;
 pub(crate) mod grave;
 pub(crate) mod inventory;
 pub(crate) mod level;
@@ -22,6 +23,7 @@ pub(super) fn plugin(app: &mut App) {
         button::plugin,
         crosshair::plugin,
         grave::plugin,
+        effects::plugin,
         inventory::plugin,
         npc::plugin,
         dig::plugin,
