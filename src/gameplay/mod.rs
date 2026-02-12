@@ -6,6 +6,7 @@
 use bevy::prelude::*;
 
 mod animation;
+pub(crate) mod button;
 pub(crate) mod crosshair;
 pub(crate) mod dig;
 pub(crate) mod grave;
@@ -13,16 +14,19 @@ pub(crate) mod inventory;
 pub(crate) mod level;
 pub(crate) mod npc;
 pub(crate) mod player;
+pub(crate) mod scenario;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins((
         animation::plugin,
+        button::plugin,
         crosshair::plugin,
         grave::plugin,
         inventory::plugin,
         npc::plugin,
         dig::plugin,
         player::plugin,
+        scenario::plugin,
         // This plugin preloads the level,
         // so make sure to add it last.
         level::plugin,

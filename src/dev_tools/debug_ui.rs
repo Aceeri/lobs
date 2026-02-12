@@ -215,8 +215,9 @@ fn is_inspector_active(inspector_active: Res<InspectorActive>) -> bool {
 }
 
 fn world_inspector_ui(world: &mut World) {
-    let egui_context =
-        world.query_filtered::<&mut EguiContext, With<PrimaryEguiContext>>().single(world);
+    let egui_context = world
+        .query_filtered::<&mut EguiContext, With<PrimaryEguiContext>>()
+        .single(world);
     let Ok(egui_context) = egui_context else {
         return;
     };

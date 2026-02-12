@@ -332,7 +332,7 @@
 // entity 18
 {
 "classname" "body_spawner"
-"origin" "-8 -616 56"
+"origin" "-40 -552 136"
 "name" "tutorial_spawner"
 "queue" "lobster,lobster,lobster"
 }

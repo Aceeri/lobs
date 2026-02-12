@@ -6,10 +6,15 @@ use bevy_trenchbroom::geometry::{Brushes, BrushesAsset};
 use bevy_trenchbroom::prelude::*;
 
 use super::npc::{Body, NpcRegistry};
+use crate::screens::Screen;
 use crate::third_party::avian3d::CollisionLayer;
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, (init_graves, slot_bodies_in_graves, tutorial_spawn));
+    app.add_systems(Update, (init_graves, slot_bodies_in_graves));
+    app.add_systems(
+        Update,
+        tutorial_spawn.run_if(in_state(Screen::Gameplay)),
+    );
     app.add_observer(init_body_spawner);
     app.add_observer(on_spawn_body);
 }
@@ -218,7 +223,7 @@ fn on_spawn_body(
                 ColliderDensity(1_000.0),
                 RigidBody::Dynamic,
                 CollisionLayers::new(
-                    CollisionLayer::Character,
+                    [CollisionLayer::Character, CollisionLayer::Prop],
                     [CollisionLayer::Default, CollisionLayer::Prop],
                 ),
                 LinearVelocity(*forward * BODY_SPAWN_SPEED),

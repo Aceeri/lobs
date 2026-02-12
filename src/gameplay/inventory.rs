@@ -46,6 +46,7 @@ pub fn plugin(app: &mut App) {
 pub(crate) struct Inventory {
     pub slots: [Option<Item>; 3],
     pub active_slot: usize,
+    pub using_hands: bool,
 }
 
 impl Default for Inventory {
@@ -53,6 +54,17 @@ impl Default for Inventory {
         Self {
             slots: [Some(Item::Shovel), Some(Item::Gun), None],
             active_slot: 0,
+            using_hands: false,
+        }
+    }
+}
+
+impl Inventory {
+    pub fn active_item(&self) -> Option<&Item> {
+        if self.using_hands {
+            None
+        } else {
+            self.slots[self.active_slot].as_ref()
         }
     }
 }
@@ -79,7 +91,12 @@ fn on_select_slot<Action: InputAction, const N: usize>(
     _on: On<Start<Action>>,
     mut inventory: ResMut<Inventory>,
 ) {
-    inventory.active_slot = N;
+    if inventory.active_slot == N && !inventory.using_hands {
+        inventory.using_hands = true;
+    } else {
+        inventory.active_slot = N;
+        inventory.using_hands = false;
+    }
 }
 
 #[derive(Debug, InputAction)]
@@ -289,8 +306,7 @@ fn use_tool(
         return;
     }
 
-    let active_item = &inventory.slots[inventory.active_slot];
-    match active_item {
+    match inventory.active_item() {
         Some(Item::Shovel) => {
             if !dig_cooldown.ready {
                 return;
@@ -335,7 +351,7 @@ fn use_tool(
                             Body,
                             RigidBody::Dynamic,
                             CollisionLayers::new(
-                                CollisionLayer::Character,
+                                [CollisionLayer::Character, CollisionLayer::Prop],
                                 [CollisionLayer::Default, CollisionLayer::Prop],
                             ),
                         ));
@@ -477,8 +493,9 @@ fn update_inventory_hud(
     mut texts: Query<&mut Text>,
 ) {
     for (slot_ui, mut bg, children) in &mut slots {
-        let idx = slot_ui.0;
-        *bg = if idx == inventory.active_slot {
+        let index = slot_ui.0;
+        let is_active = index == inventory.active_slot;
+        *bg = if is_active {
             ACTIVE_COLOR
         } else {
             INACTIVE_COLOR
@@ -486,10 +503,14 @@ fn update_inventory_hud(
         .into();
 
         // kinda wanna display a rotating tool for each of these, would be funny
-        let item_name = inventory.slots[idx]
-            .as_ref()
-            .map(|item| format!("{:?}", item))
-            .unwrap_or(String::new());
+        let item_name = if is_active && inventory.using_hands {
+            "Hands".to_string()
+        } else {
+            inventory.slots[index]
+                .as_ref()
+                .map(|item| format!("{:?}", item))
+                .unwrap_or(String::new())
+        };
 
         for child in children.iter() {
             if let Ok(mut text) = texts.get_mut(child) {
@@ -522,7 +543,7 @@ impl FromWorld for InventoryAssets {
 struct HeldItemModel;
 
 fn held_item_missing(inventory: Res<Inventory>, existing: Query<(), With<HeldItemModel>>) -> bool {
-    inventory.slots[inventory.active_slot].is_some() && existing.is_empty()
+    inventory.active_item().is_some() && existing.is_empty()
 }
 
 const SHOVEL_SWING_X_END: f32 = 0.0;
@@ -558,21 +579,13 @@ fn update_held_item(
     inventory_assets: Res<InventoryAssets>,
     // mut last_held: Local<Option<Item>>,
 ) {
-    let active_item = &inventory.slots[inventory.active_slot];
     let camera_entity = *player_camera;
-    // match (*last_held, active_item) {
-    //     (Some(item), Some(active)) if *active != item => {}
-    //     (None, Some(_)) => {}
-    //     _ => return,
-    // }
-
-    // *last_held = active_item.clone();
 
     for entity in &existing {
         commands.entity(entity).despawn();
     }
 
-    match active_item {
+    match inventory.active_item() {
         Some(Item::Shovel) => {
             let held = commands
                 .spawn((
@@ -680,6 +693,7 @@ fn animate_gun_recoil(time: Res<Time>, mut query: Query<(&mut GunRecoil, &mut Tr
         transform.translation.z = z;
     }
 }
+
 
 fn configure_held_item_view_model(
     ready: On<SceneInstanceReady>,
