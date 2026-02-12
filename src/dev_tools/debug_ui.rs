@@ -10,6 +10,7 @@ use crate::{PostPhysicsAppSystems, theme::widget};
 use avian3d::prelude::*;
 use bevy::camera::visibility::RenderLayers;
 use bevy::dev_tools::fps_overlay::FrameTimeGraphConfig;
+use bevy::mesh::skinning::SkinnedMesh;
 use bevy::ui::Val::*;
 use bevy::{
     dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin},
@@ -107,9 +108,15 @@ pub(super) fn plugin(app: &mut App) {
             toggle_lighting_debug_ui.run_if(toggled_state(DebugState::Lighting)),
             toggle_physics_debug_ui.run_if(toggled_state(DebugState::Physics)),
             toggle_landmass_debug_ui.run_if(toggled_state(DebugState::Landmass)),
+            toggle_skeleton_debug.run_if(toggled_state(DebugState::Skeleton)),
         )
             .chain()
             .in_set(PostPhysicsAppSystems::ChangeUi),
+    );
+    app.init_resource::<SkeletonDebugEnabled>();
+    app.add_systems(
+        Update,
+        draw_skeleton_gizmos.run_if(|enabled: Res<SkeletonDebugEnabled>| enabled.0),
     );
 }
 
@@ -155,6 +162,7 @@ fn update_debug_ui_text(
         DebugState::Lighting => "Lighting",
         DebugState::Physics => "Physics",
         DebugState::Landmass => "Landmass",
+        DebugState::Skeleton => "Skeleton",
     }
     .to_string();
 }
@@ -241,6 +249,7 @@ enum DebugState {
     Lighting,
     Physics,
     Landmass,
+    Skeleton,
 }
 
 impl DebugState {
@@ -250,7 +259,38 @@ impl DebugState {
             Self::Ui => Self::Lighting,
             Self::Lighting => Self::Physics,
             Self::Physics => Self::Landmass,
-            Self::Landmass => Self::None,
+            Self::Landmass => Self::Skeleton,
+            Self::Skeleton => Self::None,
+        }
+    }
+}
+
+#[derive(Resource, Debug, Default)]
+struct SkeletonDebugEnabled(bool);
+
+fn toggle_skeleton_debug(mut enabled: ResMut<SkeletonDebugEnabled>) {
+    enabled.0 = !enabled.0;
+}
+
+fn draw_skeleton_gizmos(
+    skinned_meshes: Query<&SkinnedMesh>,
+    transforms: Query<&GlobalTransform>,
+    parents: Query<&ChildOf>,
+    mut gizmos: Gizmos,
+) {
+    for skinned_mesh in &skinned_meshes {
+        for &joint in &skinned_mesh.joints {
+            let Ok(joint_transform) = transforms.get(joint) else {
+                continue;
+            };
+            let joint_pos = joint_transform.translation();
+            gizmos.sphere(Isometry3d::from_translation(joint_pos), 0.02, Color::srgb(0.0, 1.0, 0.0));
+
+            if let Ok(parent) = parents.get(joint) {
+                if let Ok(parent_transform) = transforms.get(parent.parent()) {
+                    gizmos.line(parent_transform.translation(), joint_pos, Color::srgb(1.0, 1.0, 0.0));
+                }
+            }
         }
     }
 }
