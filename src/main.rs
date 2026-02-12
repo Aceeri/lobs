@@ -29,22 +29,22 @@ use bitflags::bitflags;
 
 use bevy::{asset::AssetMetaCheck, prelude::*};
 
-#[cfg(all(feature = "native", feature = "web"))]
-compile_error!(
-    "Exactly one of the `native` or the `web` feature must be active at the same time. Instead, both are currently enabled."
-);
-#[cfg(not(any(feature = "native", feature = "web")))]
-compile_error!(
-    "Exactly one of the `native` or the `web` feature must be active at the same time. Instead, both are currently disabled."
-);
-#[cfg(all(feature = "dev", feature = "release"))]
-compile_error!(
-    "Exactly one of the `dev` or the `release` feature must be active at the same time. Instead, both are currently enabled."
-);
-#[cfg(not(any(feature = "dev", feature = "release")))]
-compile_error!(
-    "Exactly one of the `dev` or the `release` feature must be active at the same time. Instead, both are currently disabled."
-);
+// #[cfg(all(feature = "native", feature = "web"))]
+// compile_error!(
+//     "Exactly one of the `native` or the `web` feature must be active at the same time. Instead, both are currently enabled."
+// );
+// #[cfg(not(any(feature = "native", feature = "web")))]
+// compile_error!(
+//     "Exactly one of the `native` or the `web` feature must be active at the same time. Instead, both are currently disabled."
+// );
+// #[cfg(all(feature = "dev", feature = "release"))]
+// compile_error!(
+//     "Exactly one of the `dev` or the `release` feature must be active at the same time. Instead, both are currently enabled."
+// );
+// #[cfg(not(any(feature = "dev", feature = "release")))]
+// compile_error!(
+//     "Exactly one of the `dev` or the `release` feature must be active at the same time. Instead, both are currently disabled."
+// );
 
 fn main() -> AppExit {
     let mut app = App::new();

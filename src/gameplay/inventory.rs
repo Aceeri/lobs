@@ -7,7 +7,7 @@ use bevy::{
 };
 use bevy_ahoy::CharacterController;
 use bevy_enhanced_input::prelude::*;
-use bevy_hanabi::ParticleEffect;
+use bevy_hanabi::{EffectSpawner, ParticleEffect};
 
 use crate::{
     RenderLayer,
@@ -43,6 +43,7 @@ pub fn plugin(app: &mut App) {
                 (use_shovel, use_tommygun).run_if(input_pressed(MouseButton::Left)),
             )
                 .chain(),
+            update_particle_effect_state,
             animate_shovel_swing,
             animate_gun_recoil,
         ),
@@ -50,6 +51,7 @@ pub fn plugin(app: &mut App) {
     app.add_observer(on_select_slot::<SelectSlot1, 0>);
     app.add_observer(on_select_slot::<SelectSlot2, 1>);
     app.add_observer(on_select_slot::<SelectSlot3, 2>);
+    app.add_observer(start_effect_disabled);
 }
 
 #[derive(Resource)]
@@ -199,17 +201,50 @@ fn use_shovel(
     swing.returning = false;
 }
 
+#[derive(Component, Reflect)]
+#[relationship(relationship_target = ParticleEffects)]
+pub struct ParticleEffectOf(pub Entity);
+
+#[derive(Component, Reflect)]
+#[relationship_target(relationship = ParticleEffectOf)]
+pub struct ParticleEffects(Entity);
+
+fn update_particle_effect_state(
+    input: Res<ButtonInput<MouseButton>>,
+    children: Query<&ParticleEffects>,
+    mut effects: Query<&mut EffectSpawner, With<ParticleEffectOf>>,
+) {
+    for child in children {
+        let Ok(mut effect) = effects.get_mut(child.0) else {
+            continue;
+        };
+        if input.just_pressed(MouseButton::Left) {
+            effect.active = true;
+        } else if input.just_released(MouseButton::Left) {
+            effect.active = false;
+        }
+    }
+}
+fn start_effect_disabled(
+    trigger: On<Add, EffectSpawner>,
+    mut effects: Query<&mut EffectSpawner, With<ParticleEffectOf>>,
+) {
+    let Ok(mut effect_spawner) = effects.get_mut(trigger.entity) else {
+        return;
+    };
+    effect_spawner.active = false;
+}
+
 // run if mouse button left pressed
 fn use_tommygun(
     mut commands: Commands,
-    time: Res<Time>,
+    input: Res<ButtonInput<MouseButton>>,
     player: Single<&GlobalTransform, With<PlayerCamera>>,
     mut health_query: Query<&mut Health>,
     spatial_query: SpatialQuery,
-    mut gun: Single<(Entity, &mut ItemCooldown, &mut GunRecoil)>,
-    muzzle_effect: Res<MuzzleFlashEffect>,
+    gun: Single<(&mut ItemCooldown, &mut GunRecoil)>,
 ) {
-    let (gun, mut cooldown, mut recoil) = gun.into_inner();
+    let (mut cooldown, mut recoil) = gun.into_inner();
 
     if !cooldown.ready {
         return;
@@ -235,11 +270,6 @@ fn use_tommygun(
     }
     // maybe parent this to the held gun?
     let muzzle_pos = origin + *direction * 1.5;
-    commands.spawn((
-        ParticleEffect::new(muzzle_effect.0.clone()),
-        RenderLayers::from(RenderLayer::DEFAULT),
-        Transform::from_translation(muzzle_pos),
-    ));
 
     cooldown.timer.reset();
     cooldown.ready = false;
@@ -540,6 +570,7 @@ fn update_held_item(
     existing: Query<Entity, With<HeldItemModel>>,
     player_camera: Single<Entity, With<PlayerCamera>>,
     inventory_assets: Res<InventoryAssets>,
+    muzzle_effect: Res<MuzzleFlashEffect>,
     // mut last_held: Local<Option<Item>>,
 ) {
     let camera_entity = *player_camera;
@@ -586,6 +617,15 @@ fn update_held_item(
                 ))
                 .observe(configure_held_item_view_model)
                 .id();
+
+            commands.spawn((
+                ParticleEffect::new(muzzle_effect.0.clone()),
+                RenderLayers::from(RenderLayer::DEFAULT),
+                Transform::from_translation(Vec3::new(-20., 0., 0.)),
+                ParticleEffectOf(held),
+                ChildOf(held),
+            ));
+
             commands.entity(camera_entity).add_child(held);
         }
         None => {}

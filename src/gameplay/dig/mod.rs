@@ -292,7 +292,7 @@ pub struct DirtyBuffer {
 impl DirtyBuffer {
     pub fn new(bounds: IVec3) -> Self {
         Self {
-            bounds: bounds,
+            bounds,
             dirty: FixedBitSet::with_capacity((bounds.x * bounds.y * bounds.z) as usize),
         }
     }
