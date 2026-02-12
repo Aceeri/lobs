@@ -2,7 +2,7 @@
 
 use animation::NpcAnimationState;
 use avian3d::prelude::*;
-use bevy::prelude::*;
+use bevy::{ecs::entity::EntityHashSet, prelude::*};
 
 use bevy_ahoy::CharacterController;
 use bevy_trenchbroom::prelude::*;
@@ -69,7 +69,10 @@ impl Default for NpcRegistry {
 }
 
 // #[point_class(base(Transform, Visibility), model("models/fox/Fox.gltf"))]
-#[point_class(base(Transform, Visibility), model("models/lobster/lowpoly_lobster.glb"))]
+#[point_class(
+    base(Transform, Visibility),
+    model("models/lobster/lowpoly_lobster.glb")
+)]
 pub(crate) struct Npc;
 
 #[derive(Component)]
@@ -85,6 +88,13 @@ const NPC_FLOAT_HEIGHT: f32 = NPC_HALF_HEIGHT + 0.01;
 const NPC_SPEED: f32 = 7.0;
 
 fn on_add(add: On<Add, Npc>, mut commands: Commands, assets: Res<AssetServer>) {
+    let mut self_hashset = EntityHashSet::new();
+    self_hashset.insert(add.entity);
+    let filter = SpatialQueryFilter {
+        mask: [CollisionLayer::Level, CollisionLayer::Prop].into(),
+        excluded_entities: self_hashset.clone(),
+    };
+
     commands
         .entity(add.entity)
         .insert((
@@ -92,6 +102,7 @@ fn on_add(add: On<Add, Npc>, mut commands: Commands, assets: Res<AssetServer>) {
             Collider::cylinder(NPC_RADIUS, NPC_HEIGHT),
             CharacterController {
                 speed: NPC_SPEED,
+                filter: filter,
                 ..default()
             },
             ColliderDensity(1_000.0),
@@ -100,7 +111,7 @@ fn on_add(add: On<Add, Npc>, mut commands: Commands, assets: Res<AssetServer>) {
             // AnimationPlayerAncestor,
             CollisionLayers::new(
                 CollisionLayer::Character,
-                [CollisionLayer::Default, CollisionLayer::Prop],
+                [CollisionLayer::Level, CollisionLayer::Prop],
             ),
             Health(100.0),
             // The Yarn Node is what we use to trigger dialogue.
@@ -112,5 +123,5 @@ fn on_add(add: On<Add, Npc>, mut commands: Commands, assets: Res<AssetServer>) {
             Transform::from_xyz(0.0, 0.0, 0.0)
                 .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2)),
         ));
-        // .observe(setup_npc_animations);
+    // .observe(setup_npc_animations);
 }

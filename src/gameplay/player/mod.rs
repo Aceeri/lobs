@@ -5,7 +5,7 @@
 
 use animation::{PlayerAnimationState, setup_player_animations};
 use avian3d::prelude::*;
-use bevy::prelude::*;
+use bevy::{ecs::entity::EntityHashSet, prelude::*};
 use bevy_ahoy::prelude::*;
 use bevy_landmass::{Character, prelude::*};
 
@@ -16,6 +16,7 @@ use navmesh_position::LastValidPlayerNavmeshPosition;
 use crate::{
     animation::AnimationState,
     asset_tracking::LoadResource,
+    screens::Screen,
     third_party::{avian3d::CollisionLayer, bevy_trenchbroom::GetTrenchbroomModelPath as _},
 };
 
@@ -42,6 +43,7 @@ pub(super) fn plugin(app: &mut App) {
     app.add_observer(setup_player);
     app.load_asset::<Gltf>(Player::model_path());
     app.add_systems(PreUpdate, assert_only_one_player);
+    app.add_systems(Update, push_props.run_if(in_state(Screen::Gameplay)));
 }
 
 #[point_class(
@@ -70,6 +72,13 @@ fn setup_player(
     mut commands: Commands,
     archipelago: Single<Entity, With<Archipelago3d>>,
 ) {
+    let mut self_hashset = EntityHashSet::new();
+    self_hashset.insert(add.entity);
+    let filter = SpatialQueryFilter {
+        mask: [CollisionLayer::Level].into(),
+        excluded_entities: self_hashset.clone(),
+    };
+
     commands
         .entity(add.entity)
         .insert((
@@ -79,12 +88,12 @@ fn setup_player(
             // engine.
             Collider::cylinder(PLAYER_RADIUS, PLAYER_HEIGHT),
             // This is Tnua's interface component.
-            CharacterController::default(),
+            CharacterController {
+                filter: filter,
+                ..default()
+            },
             ColliderDensity(1_000.0),
-            CollisionLayers::new(
-                CollisionLayer::Character,
-                [CollisionLayer::Default, CollisionLayer::Prop],
-            ),
+            CollisionLayers::new(CollisionLayer::Character, CollisionLayer::Level),
             AnimationState::<PlayerAnimationState>::default(),
             children![(
                 Name::new("Player Landmass Character"),
@@ -104,4 +113,41 @@ fn setup_player(
 
 fn assert_only_one_player(player: Populated<(), With<Player>>) {
     assert_eq!(1, player.iter().count());
+}
+
+const PROP_PUSH_SPEED: f32 = 5.0;
+
+fn push_props(
+    player: Single<(&GlobalTransform, &Collider), With<Player>>,
+    spatial_query: SpatialQuery,
+    mut props: Query<(&GlobalTransform, &mut LinearVelocity)>,
+) {
+    let (player_transform, player_collider) = player.into_inner();
+    let player_pos = player_transform.translation();
+
+    let hits = spatial_query.shape_intersections(
+        player_collider,
+        player_pos,
+        player_transform.to_isometry().rotation,
+        &SpatialQueryFilter::from_mask(CollisionLayer::Prop),
+    );
+
+    for entity in hits {
+        let Ok((prop_transform, mut velocity)) = props.get_mut(entity) else {
+            continue;
+        };
+        let prop_pos = prop_transform.translation();
+        let delta = prop_pos - player_pos;
+        let horizontal = Vec3::new(delta.x, 0.0, delta.z);
+        let distance = horizontal.length();
+
+        if distance < 0.001 {
+            continue;
+        }
+
+        let direction = horizontal / distance;
+        let strength = (1.0 - (distance / PLAYER_RADIUS).min(1.0)) * PROP_PUSH_SPEED;
+        velocity.x = direction.x * strength;
+        velocity.z = direction.z * strength;
+    }
 }

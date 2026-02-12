@@ -62,7 +62,7 @@ fn update_interaction_prompt_ui(
 
     let system_id = update_interaction_prompt_ui.type_id();
     if let Some(node) = &dialogue_prompt.0 {
-        info!("current dialogue: {:?}", node.prompt)
+        info!("current dialogue: {:?}", node.prompt);
         text.0 = format!("E: {}", node.prompt);
         *prompt_visibility = Visibility::Inherited;
         crosshair.wants_square.insert(system_id);

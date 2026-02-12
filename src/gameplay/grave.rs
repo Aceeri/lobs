@@ -11,10 +11,7 @@ use crate::third_party::avian3d::CollisionLayer;
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, (init_graves, slot_bodies_in_graves));
-    app.add_systems(
-        Update,
-        tutorial_spawn.run_if(in_state(Screen::Gameplay)),
-    );
+    app.add_systems(Update, tutorial_spawn.run_if(in_state(Screen::Gameplay)));
     app.add_observer(init_body_spawner);
     app.add_observer(on_spawn_body);
 }
@@ -28,11 +25,7 @@ impl Default for TutorialSpawnTimer {
     }
 }
 
-fn tutorial_spawn(
-    time: Res<Time>,
-    mut timer: Local<TutorialSpawnTimer>,
-    mut commands: Commands,
-) {
+fn tutorial_spawn(time: Res<Time>, mut timer: Local<TutorialSpawnTimer>, mut commands: Commands) {
     timer.0.tick(time.delta());
     if timer.0.just_finished() {
         info!("Tutorial spawn triggered on 'tutorial_spawner'");
@@ -114,7 +107,10 @@ fn init_graves(
             GraveSensor(entity),
             Collider::cuboid(size.x, size.y, size.z),
             Sensor,
-            CollisionLayers::new(CollisionLayer::Sensor, CollisionLayer::Character),
+            CollisionLayers::new(
+                CollisionLayer::Sensor,
+                [CollisionLayer::Character, CollisionLayer::Prop],
+            ),
             Transform::from_translation(center),
             CollidingEntities::default(),
         ));
@@ -222,10 +218,7 @@ fn on_spawn_body(
                 Collider::cylinder(prefab.radius, prefab.height),
                 ColliderDensity(1_000.0),
                 RigidBody::Dynamic,
-                CollisionLayers::new(
-                    [CollisionLayer::Character, CollisionLayer::Prop],
-                    [CollisionLayer::Default, CollisionLayer::Prop],
-                ),
+                CollisionLayers::new(CollisionLayer::Prop, [CollisionLayer::Level, CollisionLayer::Prop]),
                 LinearVelocity(*forward * BODY_SPAWN_SPEED),
                 t,
             ))

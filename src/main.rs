@@ -24,6 +24,7 @@ use bevy::log::LogPlugin;
 use bevy::log::tracing_subscriber::field::MakeExt;
 use bevy::pbr::DefaultOpaqueRendererMethod;
 use bevy::{camera::visibility::RenderLayers, ecs::error::error};
+use bevy_seedling::prelude::FirewheelNode;
 use bevy_seedling::SeedlingPlugin;
 use bitflags::bitflags;
 
@@ -161,19 +162,50 @@ fn main() -> AppExit {
     // because the objects they reference need to have been registered first.
     app.add_plugins((gameplay::plugin, shader_compilation::plugin));
 
-    app.add_systems(Startup, parent_observers);
+    app.add_systems(Startup, spawn_collection_entities);
+    app.add_observer(parent_firewheel_node);
+    app.add_observer(parent_observer);
 
     app.run()
 }
 
-fn parent_observers(
+#[derive(Resource)]
+struct FirewheelNodesParent(Entity);
+
+#[derive(Resource)]
+struct ObserversParent(Entity);
+
+fn spawn_collection_entities(mut commands: Commands) {
+    let observers_parent = commands.spawn(Name::new("Observers")).id();
+    let firewheel_parent = commands.spawn(Name::new("FirewheelNodes")).id();
+    commands.insert_resource(ObserversParent(observers_parent));
+    commands.insert_resource(FirewheelNodesParent(firewheel_parent));
+}
+
+fn parent_firewheel_node(
+    _on: On<Add, FirewheelNode>,
+    parent: Option<Res<FirewheelNodesParent>>,
     mut commands: Commands,
-    observers: Query<Entity, (With<Observer>, Without<ChildOf>)>,
 ) {
-    let parent = commands.spawn(Name::new("Observers")).id();
-    for entity in &observers {
-        commands.entity(entity).insert(ChildOf(parent));
+    let Some(parent) = parent else { return };
+    commands
+        .entity(_on.entity)
+        .insert(ChildOf(parent.0));
+}
+
+fn parent_observer(
+    _on: On<Add, Observer>,
+    parent: Option<Res<ObserversParent>>,
+    children: Query<&ChildOf>,
+    mut commands: Commands,
+) {
+    let Some(parent) = parent else { return };
+    if children.get(_on.entity).is_ok() {
+        return;
     }
+    commands
+        .entity(_on.entity)
+        .insert(ChildOf(parent.0));
 }
 
 /// High-level groupings of systems for the app in the [`Update`] schedule.

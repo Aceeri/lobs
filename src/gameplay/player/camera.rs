@@ -94,7 +94,7 @@ fn spawn_view_model(
             DespawnOnExit(LoadingScreen::Shaders),
             AvianPickupActor {
                 prop_filter: SpatialQueryFilter::from_mask(CollisionLayer::Prop),
-                obstacle_filter: SpatialQueryFilter::from_mask(CollisionLayer::Default),
+                obstacle_filter: SpatialQueryFilter::from_mask(CollisionLayer::Level),
                 actor_filter: SpatialQueryFilter::from_mask(CollisionLayer::Character),
                 interaction_distance: 2.0,
                 pull: AvianPickupActorPullConfig {

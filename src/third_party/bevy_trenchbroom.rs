@@ -1,9 +1,12 @@
 //! [Bevy TrenchBroom](https://github.com/Noxmore/bevy_trenchbroom) is the integration layer between Bevy and [TrenchBroom](https://trenchbroom.github.io/).
 //! We use TrenchBroom to edit our levels.
 
+use avian3d::prelude::*;
 use bevy::{ecs::world::DeferredWorld, prelude::*};
 use bevy_trenchbroom::prelude::*;
 use bevy_trenchbroom_avian::AvianPhysicsBackend;
+
+use crate::third_party::avian3d::CollisionLayer;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins((
@@ -22,6 +25,7 @@ pub(super) fn plugin(app: &mut App) {
                     SceneHooks::new()
                         .convex_collider()
                         .smooth_by_default_angle()
+                        .with(CollisionLayers::new(CollisionLayer::Level, LayerMask::ALL))
                 }),
         ),
         TrenchBroomPhysicsPlugin::new(AvianPhysicsBackend),

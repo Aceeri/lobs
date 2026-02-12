@@ -342,7 +342,7 @@ fn use_tool(
                 GUN_DISTANCE,
                 true,
                 &SpatialQueryFilter::from_mask([
-                    CollisionLayer::Default,
+                    CollisionLayer::Level,
                     CollisionLayer::Character,
                 ]),
             ) {
@@ -353,8 +353,8 @@ fn use_tool(
                             Body,
                             RigidBody::Dynamic,
                             CollisionLayers::new(
-                                [CollisionLayer::Character, CollisionLayer::Prop],
-                                [CollisionLayer::Default, CollisionLayer::Prop],
+                                CollisionLayer::Prop,
+                                [CollisionLayer::Level, CollisionLayer::Prop],
                             ),
                         ));
                     }
@@ -395,7 +395,7 @@ fn dig_voxel(
         direction,
         DIG_DISTANCE,
         true,
-        &SpatialQueryFilter::from_mask(CollisionLayer::Default),
+        &SpatialQueryFilter::from_mask(CollisionLayer::Level),
     )?;
 
     let Ok((mut sim, sim_transform)) = voxel_sims.get_mut(hit.entity) else {
