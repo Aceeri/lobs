@@ -44,6 +44,7 @@ pub(crate) struct VoxelVolume {
     pub fill: VoxelFill,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for VoxelVolume {
     fn default() -> Self {
         Self {

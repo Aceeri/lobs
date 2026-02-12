@@ -145,26 +145,6 @@ impl ItemCooldown {
     }
 }
 
-#[derive(Component)]
-#[require(ItemCooldown = ItemCooldown::gun())]
-struct GunRecoil {
-    timer: Timer,
-    returning: bool,
-    current_z: f32,
-}
-
-impl Default for GunRecoil {
-    fn default() -> Self {
-        let mut timer = Timer::from_seconds(GUN_RECOIL_DURATION, TimerMode::Once);
-        timer.tick(timer.duration());
-        Self {
-            timer,
-            returning: true,
-            current_z: GUN_REST_TRANSLATION.z,
-        }
-    }
-}
-
 fn tick_item_cooldowns(time: Res<Time>, cooldowns: Query<&mut ItemCooldown>) {
     for mut cooldown in cooldowns {
         cooldown.timer.tick(time.delta());
@@ -178,7 +158,7 @@ fn use_shovel(
     player: Single<&GlobalTransform, With<PlayerCamera>>,
     spatial_query: SpatialQuery,
     mut voxel_sims: Query<(&mut VoxelSim, &GlobalTransform)>,
-    shovel: Single<(&mut ItemCooldown, &mut ShovelSwing, &ParticleEffects)>,
+    shovel: Single<(&mut ItemCooldown, &mut ItemAnimation, &ParticleEffects)>,
     mut effects: Query<&mut Transform, With<ParticleEffectOf>>,
 ) {
     let (mut cooldown, mut swing, effect) = shovel.into_inner();
@@ -202,7 +182,7 @@ fn use_tommygun(
     player: Single<&GlobalTransform, With<PlayerCamera>>,
     mut health_query: Query<&mut Health>,
     spatial_query: SpatialQuery,
-    gun: Single<(&mut ItemCooldown, &mut GunRecoil)>,
+    gun: Single<(&mut ItemCooldown, &mut ItemAnimation)>,
 ) {
     let (mut cooldown, mut recoil) = gun.into_inner();
 
@@ -411,23 +391,38 @@ const SHOVEL_RETURN_SPEED: f32 = 12.0;
 
 #[derive(Component)]
 #[require(ItemCooldown = ItemCooldown::shovel())]
-struct ShovelSwing {
+struct ItemAnimation {
     timer: Timer,
     returning: bool,
-    current_x: f32,
+    current_offset: f32,
 }
 
-impl Default for ShovelSwing {
-    fn default() -> Self {
+impl ItemAnimation {
+    pub fn gun() -> Self {
+        let mut timer = Timer::from_seconds(GUN_RECOIL_DURATION, TimerMode::Once);
+        timer.tick(timer.duration());
+        Self {
+            timer,
+            returning: true,
+            current_offset: GUN_REST_TRANSLATION.z,
+        }
+    }
+
+    pub fn shovel() -> Self {
         let mut timer = Timer::from_seconds(SHOVEL_SWING_DURATION, TimerMode::Once);
         timer.tick(timer.duration());
         Self {
             timer,
             returning: true,
-            current_x: SHOVEL_SWING_X_START,
+            current_offset: SHOVEL_SWING_X_START,
         }
     }
 }
+#[derive(Component)]
+pub struct Shovel;
+
+#[derive(Component)]
+pub struct Gun;
 
 fn update_held_item(
     mut commands: Commands,
@@ -451,7 +446,9 @@ fn update_held_item(
                 .spawn((
                     Name::new("Held Shovel"),
                     HeldItemModel,
-                    ShovelSwing::default(),
+                    ItemAnimation::shovel(),
+                    ItemCooldown::shovel(),
+                    Shovel,
                     SceneRoot(inventory_assets.shovel.clone()),
                     Transform {
                         translation: Vec3::new(0.4, -0.2, -0.5),
@@ -481,7 +478,9 @@ fn update_held_item(
                 .spawn((
                     Name::new("Held Gun"),
                     HeldItemModel,
-                    GunRecoil::default(),
+                    ItemAnimation::gun(),
+                    ItemCooldown::gun(),
+                    Gun,
                     SceneRoot(inventory_assets.gun.clone()),
                     Transform {
                         translation: GUN_REST_TRANSLATION,
@@ -507,28 +506,32 @@ fn update_held_item(
 }
 
 // i love hardcoding animations c:
-fn animate_shovel_swing(time: Res<Time>, mut query: Query<(&mut ShovelSwing, &mut Transform)>) {
+fn animate_shovel_swing(
+    time: Res<Time>,
+    mut query: Query<(&mut ItemAnimation, &mut Transform), With<Shovel>>,
+) {
     for (mut swing, mut transform) in &mut query {
         swing.timer.tick(time.delta());
 
         let x = if swing.returning {
             let target = SHOVEL_SWING_X_START;
-            swing.current_x += (target - swing.current_x) * SHOVEL_RETURN_SPEED * time.delta_secs();
-            if (swing.current_x - target).abs() < 0.01 {
-                swing.current_x = target;
+            swing.current_offset +=
+                (target - swing.current_offset) * SHOVEL_RETURN_SPEED * time.delta_secs();
+            if (swing.current_offset - target).abs() < 0.01 {
+                swing.current_offset = target;
             }
-            swing.current_x
+            swing.current_offset
         } else if swing.timer.just_finished()
             || swing.timer.elapsed_secs() >= swing.timer.duration().as_secs_f32()
         {
             swing.returning = true;
-            swing.current_x = SHOVEL_SWING_X_END;
+            swing.current_offset = SHOVEL_SWING_X_END;
             SHOVEL_SWING_X_END
         } else {
             let t =
                 (swing.timer.elapsed_secs() / swing.timer.duration().as_secs_f32()).clamp(0.0, 1.0);
             let x = SHOVEL_SWING_X_START + (SHOVEL_SWING_X_END - SHOVEL_SWING_X_START) * t;
-            swing.current_x = x;
+            swing.current_offset = x;
             x
         };
 
@@ -541,29 +544,33 @@ fn animate_shovel_swing(time: Res<Time>, mut query: Query<(&mut ShovelSwing, &mu
     }
 }
 
-fn animate_gun_recoil(time: Res<Time>, mut query: Query<(&mut GunRecoil, &mut Transform)>) {
+fn animate_gun_recoil(
+    time: Res<Time>,
+    mut query: Query<(&mut ItemAnimation, &mut Transform), With<Gun>>,
+) {
     for (mut recoil, mut transform) in &mut query {
         recoil.timer.tick(time.delta());
 
         let z = if recoil.returning {
             let target = GUN_REST_TRANSLATION.z;
-            recoil.current_z += (target - recoil.current_z) * GUN_RETURN_SPEED * time.delta_secs();
-            if (recoil.current_z - target).abs() < 0.001 {
-                recoil.current_z = target;
+            recoil.current_offset +=
+                (target - recoil.current_offset) * GUN_RETURN_SPEED * time.delta_secs();
+            if (recoil.current_offset - target).abs() < 0.001 {
+                recoil.current_offset = target;
             }
-            recoil.current_z
+            recoil.current_offset
         } else if recoil.timer.just_finished()
             || recoil.timer.elapsed_secs() >= recoil.timer.duration().as_secs_f32()
         {
             recoil.returning = true;
             let kicked = GUN_REST_TRANSLATION.z + GUN_RECOIL_Z;
-            recoil.current_z = kicked;
+            recoil.current_offset = kicked;
             kicked
         } else {
             let t = (recoil.timer.elapsed_secs() / recoil.timer.duration().as_secs_f32())
                 .clamp(0.0, 1.0);
             let z = GUN_REST_TRANSLATION.z + (GUN_RECOIL_Z) * t;
-            recoil.current_z = z;
+            recoil.current_offset = z;
             z
         };
 
