@@ -2,7 +2,8 @@ use std::iter;
 
 use avian3d::prelude::*;
 use bevy::{
-    camera::visibility::RenderLayers, light::NotShadowCaster, prelude::*, scene::SceneInstanceReady,
+    camera::visibility::RenderLayers, input::common_conditions::input_pressed,
+    light::NotShadowCaster, prelude::*, scene::SceneInstanceReady,
 };
 use bevy_ahoy::CharacterController;
 use bevy_enhanced_input::prelude::*;
@@ -37,7 +38,11 @@ pub fn plugin(app: &mut App) {
     app.add_systems(
         Update,
         (
-            (tick_item_cooldowns, (use_shovel, use_tommygun)).chain(),
+            (
+                tick_item_cooldowns,
+                (use_shovel, use_tommygun).run_if(input_pressed(MouseButton::Left)),
+            )
+                .chain(),
             animate_shovel_swing,
             animate_gun_recoil,
         ),
