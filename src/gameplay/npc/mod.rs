@@ -7,6 +7,8 @@ use bevy::prelude::*;
 use bevy_ahoy::CharacterController;
 use bevy_trenchbroom::prelude::*;
 
+use bevy::platform::collections::HashMap;
+
 use crate::{
     animation::AnimationState,
     asset_tracking::LoadResource,
@@ -27,11 +29,42 @@ pub(super) fn plugin(app: &mut App) {
     app.add_plugins((ai::plugin, animation::plugin, assets::plugin, sound::plugin));
     app.load_asset::<Gltf>(Npc::model_path());
     app.add_observer(on_add);
+    app.init_resource::<NpcRegistry>();
+}
+
+#[derive(Clone)]
+pub(crate) struct NpcPrefab {
+    pub scene: String,
+    pub radius: f32,
+    pub height: f32,
+}
+
+#[derive(Resource)]
+pub(crate) struct NpcRegistry {
+    pub prefabs: HashMap<String, NpcPrefab>,
+}
+
+impl Default for NpcRegistry {
+    fn default() -> Self {
+        let mut prefabs = HashMap::new();
+        prefabs.insert(
+            "lobster".into(),
+            NpcPrefab {
+                scene: Npc::scene_path(),
+                radius: NPC_RADIUS,
+                height: NPC_HEIGHT,
+            },
+        );
+        Self { prefabs }
+    }
 }
 
 // #[point_class(base(Transform, Visibility), model("models/fox/Fox.gltf"))]
 #[point_class(base(Transform, Visibility), model("models/lobster/lowpoly_lobster.glb"))]
 pub(crate) struct Npc;
+
+#[derive(Component)]
+pub(crate) struct Body;
 
 #[derive(Component)]
 pub(crate) struct Health(pub f32);

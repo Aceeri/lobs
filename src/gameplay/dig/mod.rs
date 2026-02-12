@@ -14,12 +14,20 @@ use fixedbitset::FixedBitSet;
 /// World-space size of a single voxel. 4 voxels per world unit.
 pub const VOXEL_SIZE: f32 = 0.25;
 
+const VOXEL_SIM_HZ: f32 = 30.0;
+
 pub fn plugin(app: &mut App) {
-    app.add_systems(FixedUpdate, voxel_sim);
-    app.add_systems(Update, (remesh_voxels, init_voxel_volumes));
+    app.insert_resource(VoxelSimTimer(Timer::from_seconds(
+        1.0 / VOXEL_SIM_HZ,
+        TimerMode::Repeating,
+    )));
+    app.add_systems(Update, (voxel_sim, remesh_voxels, init_voxel_volumes));
     app.add_observer(add_dirty_buff);
     app.add_observer(add_voxel_children);
 }
+
+#[derive(Resource)]
+struct VoxelSimTimer(Timer);
 
 #[derive(FgdType, Reflect, Debug, Clone, Default)]
 #[number_key]
@@ -118,7 +126,11 @@ fn init_voxel_volumes(
     }
 }
 
-pub fn voxel_sim(mut sims: Query<(&mut VoxelSim, &mut DirtyBuffer)>) {
+fn voxel_sim(time: Res<Time>, mut timer: ResMut<VoxelSimTimer>, mut sims: Query<(&mut VoxelSim, &mut DirtyBuffer)>) {
+    timer.0.tick(time.delta());
+    if !timer.0.just_finished() {
+        return;
+    }
     for (mut sim, mut dirty) in &mut sims {
         sim.simulate(&mut *dirty);
     }

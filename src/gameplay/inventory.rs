@@ -4,6 +4,7 @@ use avian3d::prelude::*;
 use bevy::{
     camera::visibility::RenderLayers, light::NotShadowCaster, prelude::*, scene::SceneInstanceReady,
 };
+use bevy_ahoy::CharacterController;
 use bevy_enhanced_input::prelude::*;
 use bevy_hanabi::prelude::{Gradient as HanabiGradient, *};
 
@@ -12,7 +13,7 @@ use crate::{
     asset_tracking::LoadResource,
     gameplay::{
         dig::{VOXEL_SIZE, Voxel, VoxelSim},
-        npc::Health,
+        npc::{Body, Health},
         player::camera::PlayerCamera,
     },
     screens::Screen,
@@ -330,7 +331,14 @@ fn use_tool(
                 if let Ok(mut health) = health_query.get_mut(hit.entity) {
                     health.0 -= GUN_DAMAGE;
                     if health.0 <= 0.0 {
-                        commands.entity(hit.entity).despawn();
+                        commands.entity(hit.entity).remove::<CharacterController>().insert((
+                            Body,
+                            RigidBody::Dynamic,
+                            CollisionLayers::new(
+                                CollisionLayer::Character,
+                                [CollisionLayer::Default, CollisionLayer::Prop],
+                            ),
+                        ));
                     }
                 }
             }
