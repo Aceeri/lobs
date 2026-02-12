@@ -15,7 +15,7 @@ use crate::{
     gameplay::{
         dig::{VOXEL_SIZE, Voxel, VoxelSim},
         effects::{DigParticleEffect, MuzzleFlashEffect, ParticleEffectOf, ParticleEffects},
-        npc::Health,
+        npc::{Body, Health},
         player::camera::PlayerCamera,
     },
     screens::Screen,
@@ -212,7 +212,17 @@ fn use_tommygun(
         if let Ok(mut health) = health_query.get_mut(hit.entity) {
             health.0 -= GUN_DAMAGE;
             if health.0 <= 0.0 {
-                commands.entity(hit.entity).despawn();
+                commands
+                    .entity(hit.entity)
+                    .remove::<CharacterController>()
+                    .insert((
+                        Body,
+                        RigidBody::Dynamic,
+                        CollisionLayers::new(
+                            CollisionLayer::Character,
+                            [CollisionLayer::Default, CollisionLayer::Prop],
+                        ),
+                    ));
             }
         }
     }
