@@ -114,7 +114,7 @@ fn init_graves(
             GraveSensor(entity),
             Collider::cuboid(size.x, size.y, size.z),
             Sensor,
-            CollisionLayers::new(CollisionLayer::Default, CollisionLayer::Character),
+            CollisionLayers::new(CollisionLayer::Sensor, CollisionLayer::Character),
             Transform::from_translation(center),
             CollidingEntities::default(),
         ));

@@ -24,8 +24,8 @@ pub fn plugin(app: &mut App) {
     app.init_resource::<Inventory>();
     app.init_resource::<DigCooldown>();
     app.init_resource::<GunCooldown>();
-    app.init_resource::<DigParticleEffect>();
-    app.init_resource::<MuzzleFlashEffect>();
+    app.load_resource::<DigParticleEffect>();
+    app.load_resource::<MuzzleFlashEffect>();
     app.load_resource::<InventoryAssets>();
     app.add_systems(OnEnter(Screen::Gameplay), spawn_inventory_hud);
     app.add_systems(
@@ -104,7 +104,7 @@ fn on_select_slot<Action: InputAction, const N: usize>(
 pub(crate) struct UseTool;
 
 const DIG_DISTANCE: f32 = 5.0;
-const DIG_RADIUS: f32 = 2.0;
+const DIG_RADIUS: f32 = 3.0;
 const DIG_COOLDOWN: f32 = 0.5;
 
 const GUN_DISTANCE: f32 = 50.0;
@@ -164,7 +164,8 @@ impl Default for GunRecoil {
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Asset, Clone, Reflect)]
+#[reflect(Resource)]
 struct DigParticleEffect(Handle<EffectAsset>);
 
 impl FromWorld for DigParticleEffect {
@@ -225,7 +226,8 @@ impl FromWorld for DigParticleEffect {
     }
 }
 
-#[derive(Resource)]
+#[derive(Resource, Asset, Clone, Reflect)]
+#[reflect(Resource)]
 struct MuzzleFlashEffect(Handle<EffectAsset>);
 
 impl FromWorld for MuzzleFlashEffect {

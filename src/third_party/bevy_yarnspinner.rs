@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use bevy_trenchbroom::prelude::*;
 use bevy_yarnspinner::{events::DialogueCompleted, prelude::*};
-use bevy_yarnspinner_example_dialogue_view::prelude::*;
+use bevy_yarnspinner_example_dialogue_view::{UiRootNode, prelude::*};
 
 use crate::screens::Screen;
 
@@ -17,11 +17,21 @@ pub(super) fn plugin(app: &mut App) {
         ]),
         ExampleYarnSpinnerDialogueViewPlugin::default(),
     ));
+    app.add_observer(offset_dialogue_ui);
     app.add_systems(OnEnter(Screen::Gameplay), setup_dialogue_runner);
     app.add_systems(
         OnExit(Screen::Gameplay),
         abort_all_dialogues_when_leaving_gameplay,
     );
+}
+
+fn offset_dialogue_ui(
+    _on: On<Add, UiRootNode>,
+    mut roots: Query<&mut Node, With<UiRootNode>>,
+) {
+    for mut node in &mut roots {
+        node.padding.bottom = Val::Px(90.0);
+    }
 }
 
 fn setup_dialogue_runner(mut commands: Commands, yarn_project: Res<YarnProject>) {

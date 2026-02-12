@@ -15,6 +15,7 @@ pub(crate) enum CollisionLayer {
     Default,
     Prop,
     Character,
+    Sensor,
 }
 
 fn enable_interpolation(

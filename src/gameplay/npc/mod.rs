@@ -28,6 +28,7 @@ mod sound;
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins((ai::plugin, animation::plugin, assets::plugin, sound::plugin));
     app.load_asset::<Gltf>(Npc::model_path());
+    app.load_asset::<Gltf>("models/crab/scene.gltf");
     app.add_observer(on_add);
     app.init_resource::<NpcRegistry>();
 }
@@ -53,6 +54,14 @@ impl Default for NpcRegistry {
                 scene: Npc::scene_path(),
                 radius: NPC_RADIUS,
                 height: NPC_HEIGHT,
+            },
+        );
+        prefabs.insert(
+            "crab".into(),
+            NpcPrefab {
+                scene: "models/crab/scene.gltf#Scene0".into(),
+                radius: 0.5,
+                height: 0.8,
             },
         );
         Self { prefabs }

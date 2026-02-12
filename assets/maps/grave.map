@@ -336,3 +336,8 @@
 "name" "tutorial_spawner"
 "queue" "lobster,lobster,lobster"
 }
+// entity 19
+{
+"classname" "button"
+"origin" "-120 -600 72"
+}

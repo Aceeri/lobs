@@ -92,6 +92,10 @@ fn assets() -> impl Bundle {
             "Tommy gun",
             "(https://skfb.ly/o6OHN) by Redpool is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).",
         ],
+        [
+            "Crab",
+            "(https://skfb.ly/ovttx) by Kaniksu is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).",
+        ],
     ])
 }
 
