@@ -33,6 +33,9 @@ pub(super) fn plugin(app: &mut App) {
 #[point_class(base(Transform, Visibility), model("models/lobster/lowpoly_lobster.glb"))]
 pub(crate) struct Npc;
 
+#[derive(Component)]
+pub(crate) struct Health(pub f32);
+
 pub(crate) const NPC_RADIUS: f32 = 0.6;
 pub(crate) const NPC_HEIGHT: f32 = 1.3;
 const NPC_HALF_HEIGHT: f32 = NPC_HEIGHT / 2.0;
@@ -57,6 +60,7 @@ fn on_add(add: On<Add, Npc>, mut commands: Commands, assets: Res<AssetServer>) {
                 CollisionLayer::Character,
                 [CollisionLayer::Default, CollisionLayer::Prop],
             ),
+            Health(100.0),
             // The Yarn Node is what we use to trigger dialogue.
             YarnNode::new("Lefty_Larry"),
         ))
