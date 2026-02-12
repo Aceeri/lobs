@@ -1,7 +1,10 @@
 use bevy::prelude::*;
 use bevy_hanabi::prelude::{Gradient as HanabiGradient, *};
 
-use crate::gameplay::{dig::VOXEL_SIZE, inventory::DIG_RADIUS};
+use crate::gameplay::{
+    dig::VOXEL_SIZE,
+    inventory::{AnimationState, DIG_RADIUS},
+};
 
 pub(super) fn plugin(app: &mut App) {
     app.init_resource::<DigParticleEffect>();
@@ -27,17 +30,21 @@ impl ParticleEffects {
 
 fn update_particle_effect_state(
     input: Res<ButtonInput<MouseButton>>,
-    children: Query<&ParticleEffects>,
+    children: Query<(&AnimationState, &ParticleEffects), Changed<AnimationState>>,
     mut effects: Query<&mut EffectSpawner, With<ParticleEffectOf>>,
 ) {
-    for child in children {
+    for (animation_state, child) in children {
         let Ok(mut effect) = effects.get_mut(child.0) else {
             continue;
         };
-        if input.just_pressed(MouseButton::Left) {
-            effect.active = true;
-        } else if input.just_released(MouseButton::Left) {
-            effect.active = false;
+        match *animation_state {
+            AnimationState::Swinging => {
+                effect.active = true;
+            }
+            AnimationState::Resting => {
+                effect.active = false;
+            }
+            AnimationState::Returning => {}
         }
     }
 }
