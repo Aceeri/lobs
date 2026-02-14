@@ -29,6 +29,11 @@ pub struct PreviewCamera {
     offset: Vec3,
 }
 
+pub struct PreviewEntities {
+    pub camera: Entity,
+    pub model: Entity,
+}
+
 // TODO: move this shit into its own file
 pub fn spawn_model_preview(
     commands: &mut Commands,
@@ -38,13 +43,23 @@ pub fn spawn_model_preview(
     spin_speed: f32,
     model_transform: Transform,
     label: &str,
-) -> Entity {
+) -> PreviewEntities {
     let offset = Vec3::new(0.0, PREVIEW_BASE_Y + index as f32 * PREVIEW_SPACING, 0.0);
 
     let image = Image::new_target_texture(128, 128, TextureFormat::Bgra8UnormSrgb, None);
     let image_handle = images.add(image);
 
-    let model_entity = commands
+    let scene_child = commands
+        .spawn((
+            Name::new(format!("Preview Model ({label})")),
+            PreviewModel,
+            SceneRoot(scene),
+            model_transform,
+            RenderLayers::from(RenderLayer::CRAB_HUD),
+        ))
+        .id();
+
+    let spinner_entity = commands
         .spawn((
             Name::new("Preview Spinner"),
             SpinningPreview { speed: spin_speed },
@@ -53,15 +68,7 @@ pub fn spawn_model_preview(
             RenderLayers::from(RenderLayer::CRAB_HUD),
             DespawnOnExit(Screen::Gameplay),
         ))
-        .with_children(|parent| {
-            parent.spawn((
-                Name::new(format!("Preview Model ({label})")),
-                PreviewModel,
-                SceneRoot(scene),
-                model_transform,
-                RenderLayers::from(RenderLayer::CRAB_HUD),
-            ));
-        })
+        .add_child(scene_child)
         .id();
 
     let camera_entity = commands
@@ -85,30 +92,33 @@ pub fn spawn_model_preview(
                 .looking_at(offset, Vec3::Y),
             RenderLayers::from(RenderLayer::CRAB_HUD),
             PreviewCamera {
-                model: model_entity,
+                model: spinner_entity,
                 offset,
             },
             DespawnOnExit(Screen::Gameplay),
         ))
         .id();
 
-    commands.spawn((
-        Name::new("Preview Light"),
-        PointLight {
-            intensity: 5000.0,
-            shadows_enabled: false,
-            range: 20.0,
-            ..default()
-        },
-        Transform::from_translation(offset + Vec3::new(2.0, 3.0, 2.0)),
-        RenderLayers::from(RenderLayer::CRAB_HUD),
-        DespawnOnExit(Screen::Gameplay),
-    ));
+    // commands.spawn((
+    //     Name::new("Preview Light"),
+    //     PointLight {
+    //         intensity: 5000.0,
+    //         shadows_enabled: false,
+    //         range: 20.0,
+    //         ..default()
+    //     },
+    //     Transform::from_translation(offset + Vec3::new(2.0, 3.0, 2.0)),
+    //     RenderLayers::from(RenderLayer::CRAB_HUD),
+    //     DespawnOnExit(Screen::Gameplay),
+    // ));
 
-    camera_entity
+    PreviewEntities {
+        camera: camera_entity,
+        model: scene_child,
+    }
 }
 
-/// assign the preview render layer to all mesh descendants once a scene is ready.
+/// Assign the preview render layer to all mesh descendants once a scene is ready.
 fn configure_preview_render_layers(
     ready: On<SceneInstanceReady>,
     mut commands: Commands,
@@ -214,10 +224,11 @@ struct CrustsCounterText;
 fn spawn_crusts_hud(
     mut commands: Commands,
     mut images: ResMut<Assets<Image>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
     crusts_assets: Res<CrustsAssets>,
     crusts: Res<Crusts>,
 ) {
-    let camera = spawn_model_preview(
+    let preview = spawn_model_preview(
         &mut commands,
         &mut images,
         crusts_assets.crab.clone(),
@@ -225,6 +236,27 @@ fn spawn_crusts_hud(
         0.5,
         Transform::from_rotation(Quat::from_rotation_x(1.57)),
         "Crab",
+    );
+
+    let red_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.8, 0.1, 0.1),
+        ..default()
+    });
+    commands.entity(preview.model).observe(
+        move |ready: On<SceneInstanceReady>,
+              mut commands: Commands,
+              q_children: Query<&Children>,
+              q_mesh: Query<(), With<Mesh3d>>| {
+            let root = ready.entity;
+            for child in iter::once(root)
+                .chain(q_children.iter_descendants(root))
+                .filter(|e| q_mesh.contains(*e))
+            {
+                commands
+                    .entity(child)
+                    .insert(MeshMaterial3d(red_mat.clone()));
+            }
+        },
     );
 
     commands
@@ -250,7 +282,7 @@ fn spawn_crusts_hud(
                 })
                 .with_children(|row| {
                     row.spawn((
-                        ViewportNode::new(camera),
+                        ViewportNode::new(preview.camera),
                         Node {
                             width: Val::Px(48.0),
                             height: Val::Px(48.0),

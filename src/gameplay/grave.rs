@@ -10,7 +10,14 @@ use crate::screens::Screen;
 use crate::third_party::avian3d::CollisionLayer;
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, (init_graves, slot_bodies_in_graves));
+    app.add_systems(
+        Update,
+        (
+            init_graves,
+            make_grave_colliders_sensors,
+            slot_bodies_in_graves,
+        ),
+    );
     app.add_systems(Update, tutorial_spawn.run_if(in_state(Screen::Gameplay)));
     app.add_observer(init_body_spawner);
     app.add_observer(on_spawn_body);
@@ -117,6 +124,30 @@ fn init_graves(
     }
 }
 
+fn make_grave_colliders_sensors(
+    mut commands: Commands,
+    graves: Query<Entity, With<GraveState>>,
+    q_children: Query<&Children>,
+    q_needs_fix: Query<(), (With<Collider>, Without<Sensor>)>,
+) {
+    for grave in &graves {
+        for entity in std::iter::once(grave).chain(q_children.iter_descendants(grave)) {
+            if q_needs_fix.contains(entity) {
+                commands
+                    .entity(entity)
+                    .insert((
+                        Sensor,
+                        CollisionLayers::new(
+                            CollisionLayer::Sensor,
+                            [CollisionLayer::Character, CollisionLayer::Prop],
+                        ),
+                    ))
+                    .remove::<RigidBody>();
+            }
+        }
+    }
+}
+
 #[point_class(base(Transform, Visibility))]
 pub(crate) struct BodySpawner {
     pub name: String,
@@ -218,7 +249,10 @@ fn on_spawn_body(
                 Collider::cylinder(prefab.radius, prefab.height),
                 ColliderDensity(1_000.0),
                 RigidBody::Dynamic,
-                CollisionLayers::new(CollisionLayer::Prop, [CollisionLayer::Level, CollisionLayer::Prop]),
+                CollisionLayers::new(
+                    CollisionLayer::Prop,
+                    [CollisionLayer::Level, CollisionLayer::Prop],
+                ),
                 LinearVelocity(*forward * BODY_SPAWN_SPEED),
                 t,
             ))

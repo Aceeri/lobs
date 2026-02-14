@@ -236,34 +236,32 @@ impl FromWorld for MuzzleFlashEffect {
     fn from_world(world: &mut World) -> Self {
         let mut effects = world.resource_mut::<Assets<EffectAsset>>();
 
-        let writer = ExprWriter::new();
-
-        let mean_vel = writer.lit(Vec3::new(0.0, 0.0, -8.0));
-        let sd_vel = writer.lit(Vec3::new(3.0, 3.0, 4.0));
-        let init_vel =
-            SetAttributeModifier::new(Attribute::VELOCITY, mean_vel.normal(sd_vel).expr());
-
-        let mut module = writer.finish();
+        let mut module = ExprWriter::new().finish();
 
         let init_pos = SetPositionSphereModifier {
             center: module.lit(Vec3::ZERO),
-            radius: module.lit(0.05),
-            dimension: ShapeDimension::Volume,
+            radius: module.lit(0.15),
+            dimension: ShapeDimension::Surface,
         };
 
-        let lifetime = SetAttributeModifier::new(Attribute::LIFETIME, module.lit(0.15));
+        let init_vel = SetVelocitySphereModifier {
+            center: module.lit(Vec3::ZERO),
+            speed: module.lit(5.0),
+        };
+
+        let lifetime = SetAttributeModifier::new(Attribute::LIFETIME, module.lit(0.3));
 
         let mut gradient = HanabiGradient::new();
         gradient.add_key(0.0, Vec4::new(1.0, 0.9, 0.3, 1.0));
-        gradient.add_key(0.4, Vec4::new(1.0, 0.6, 0.1, 0.8));
+        gradient.add_key(0.3, Vec4::new(1.0, 0.6, 0.1, 0.8));
         gradient.add_key(1.0, Vec4::new(0.8, 0.3, 0.0, 0.0));
 
         let mut size_curve = HanabiGradient::new();
-        size_curve.add_key(0.0, Vec3::splat(0.06));
-        size_curve.add_key(1.0, Vec3::splat(0.01));
+        size_curve.add_key(0.0, Vec3::splat(0.08));
+        size_curve.add_key(1.0, Vec3::splat(0.02));
 
-        let effect = EffectAsset::new(128, SpawnerSettings::once(10.0.into()), module)
-            .with_name("MuzzleFlash")
+        let effect = EffectAsset::new(256, SpawnerSettings::once(30.0.into()), module)
+            .with_name("ImpactExplosion")
             .with_alpha_mode(bevy_hanabi::AlphaMode::Add)
             .init(init_pos)
             .init(init_vel)
@@ -275,6 +273,10 @@ impl FromWorld for MuzzleFlashEffect {
             .render(SizeOverLifetimeModifier {
                 gradient: size_curve,
                 screen_space_size: false,
+            })
+            .render(OrientModifier {
+                rotation: None,
+                mode: OrientMode::FaceCameraPosition,
             });
 
         Self(effects.add(effect))
@@ -288,6 +290,7 @@ fn use_tool(
     mut dig_cooldown: ResMut<DigCooldown>,
     mut gun_cooldown: ResMut<GunCooldown>,
     player: Single<&GlobalTransform, With<PlayerCamera>>,
+    player_entity: Single<Entity, With<super::player::Player>>,
     spatial_query: SpatialQuery,
     mut voxel_sims: Query<(&mut VoxelSim, &GlobalTransform)>,
     mut shovel: Query<&mut ShovelSwing>,
@@ -338,12 +341,14 @@ fn use_tool(
             let origin = camera_transform.translation;
             let direction = camera_transform.forward();
 
+            let mut gun_filter = SpatialQueryFilter::from_mask([CollisionLayer::Level, CollisionLayer::Character]);
+            gun_filter.excluded_entities.insert(*player_entity);
             if let Some(hit) = spatial_query.cast_ray(
                 origin,
                 direction,
                 GUN_DISTANCE,
                 true,
-                &SpatialQueryFilter::from_mask([CollisionLayer::Level, CollisionLayer::Character]),
+                &gun_filter,
             ) {
                 if let Ok(mut health) = health_query.get_mut(hit.entity) {
                     health.0 -= GUN_DAMAGE;
@@ -361,15 +366,15 @@ fn use_tool(
                             ));
                     }
                 }
-            }
 
-            // maybe parent this to the held gun?
-            let muzzle_pos = origin + *direction * 1.5;
-            commands.spawn((
-                ParticleEffect::new(muzzle_effect.0.clone()),
-                RenderLayers::from(RenderLayer::DEFAULT),
-                Transform::from_translation(muzzle_pos).with_rotation(camera_transform.rotation),
-            ));
+                // Spawn sphere explosion at the hit point
+                let hit_point = origin + *direction * hit.distance;
+                commands.spawn((
+                    ParticleEffect::new(muzzle_effect.0.clone()),
+                    RenderLayers::from(RenderLayer::DEFAULT),
+                    Transform::from_translation(hit_point),
+                ));
+            }
 
             gun_cooldown.timer.reset();
             gun_cooldown.ready = false;
@@ -535,7 +540,7 @@ fn spawn_inventory_hud(
             "Bucket",
         ),
     ];
-    let slot_cameras: Vec<Entity> = slot_configs
+    let slot_previews: Vec<_> = slot_configs
         .into_iter()
         .enumerate()
         .map(|(i, (scene, transform, label))| {
@@ -588,7 +593,7 @@ fn spawn_inventory_hud(
                             BorderColor::all(Color::WHITE),
                         ))
                         .with_child((
-                            ViewportNode::new(slot_cameras[i]),
+                            ViewportNode::new(slot_previews[i].camera),
                             Node {
                                 width: Val::Percent(100.0),
                                 height: Val::Percent(100.0),
