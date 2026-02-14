@@ -52,7 +52,7 @@ pub(crate) struct Inventory {
 impl Default for Inventory {
     fn default() -> Self {
         Self {
-            slots: [Some(Item::Shovel), Some(Item::Gun), None],
+            slots: [Some(Item::Shovel), Some(Item::Gun), Some(Item::DirtBucket)],
             active_slot: 0,
             using_hands: false,
         }
@@ -73,6 +73,7 @@ impl Inventory {
 pub(crate) enum Item {
     Shovel,
     Gun,
+    DirtBucket,
 }
 
 #[derive(Debug, InputAction)]
@@ -376,6 +377,24 @@ fn use_tool(
                 recoil.returning = false;
             }
         }
+        Some(Item::DirtBucket) => {
+            if !dig_cooldown.ready {
+                return;
+            }
+            if let Some(hit_point) = fill_voxel(&player, &spatial_query, &mut voxel_sims) {
+                commands.spawn((
+                    ParticleEffect::new(dig_effect.0.clone()),
+                    RenderLayers::from(RenderLayer::DEFAULT),
+                    Transform::from_translation(hit_point),
+                ));
+            }
+            dig_cooldown.timer.reset();
+            dig_cooldown.ready = false;
+            if let Ok(mut swing) = shovel.single_mut() {
+                swing.timer.reset();
+                swing.returning = false;
+            }
+        }
         None => {}
     }
 }
@@ -423,6 +442,57 @@ fn dig_voxel(
                 if dist_sq <= r_sq {
                     let pos = center + IVec3::new(dx, dy, dz);
                     sim.set(pos, Voxel::Air);
+                }
+            }
+        }
+    }
+
+    Some(surface_point)
+}
+
+/// Returns the world-space hit point if voxels were filled with dirt.
+fn fill_voxel(
+    player: &GlobalTransform,
+    spatial_query: &SpatialQuery,
+    voxel_sims: &mut Query<(&mut VoxelSim, &GlobalTransform)>,
+) -> Option<Vec3> {
+    let camera_transform = player.compute_transform();
+    let origin = camera_transform.translation;
+    let direction = camera_transform.forward();
+
+    let hit = spatial_query.cast_ray(
+        origin,
+        direction,
+        DIG_DISTANCE,
+        true,
+        &SpatialQueryFilter::from_mask(CollisionLayer::Level),
+    )?;
+
+    let Ok((mut sim, sim_transform)) = voxel_sims.get_mut(hit.entity) else {
+        return None;
+    };
+
+    // negative bias: push back toward player so dirt builds on the near side
+    const BIAS: f32 = 0.1;
+    let hit_point = origin + *direction * hit.distance - *direction * BIAS;
+    let surface_point = origin + *direction * hit.distance;
+
+    let local = sim_transform
+        .compute_transform()
+        .compute_affine()
+        .inverse()
+        .transform_point3(hit_point);
+    let center = (local / VOXEL_SIZE).floor().as_ivec3();
+
+    let r = DIG_RADIUS as i32;
+    let r_sq = DIG_RADIUS * DIG_RADIUS;
+    for dx in -r..=r {
+        for dy in -r..=r {
+            for dz in -r..=r {
+                let dist_sq = (dx * dx + dy * dy + dz * dz) as f32;
+                if dist_sq <= r_sq {
+                    let pos = center + IVec3::new(dx, dy, dz);
+                    sim.set(pos, Voxel::Dirt);
                 }
             }
         }
@@ -529,6 +599,8 @@ struct InventoryAssets {
     shovel: Handle<Scene>,
     #[dependency]
     gun: Handle<Scene>,
+    #[dependency]
+    bucket: Handle<Scene>,
 }
 
 impl FromWorld for InventoryAssets {
@@ -537,6 +609,7 @@ impl FromWorld for InventoryAssets {
         Self {
             shovel: assets.load("models/shovel/scene.gltf#Scene0"),
             gun: assets.load("models/tommy_gun.glb#Scene0"),
+            bucket: assets.load("models/bucket/metal_bucket.glb#Scene0"),
         }
     }
 }
@@ -595,6 +668,28 @@ fn update_held_item(
                     HeldItemModel,
                     ShovelSwing::default(),
                     SceneRoot(inventory_assets.shovel.clone()),
+                    Transform {
+                        translation: Vec3::new(0.4, -0.2, -0.5),
+                        rotation: Quat::from_euler(
+                            EulerRot::XYZ,
+                            SHOVEL_REST_ROTATION.x,
+                            SHOVEL_REST_ROTATION.y,
+                            SHOVEL_REST_ROTATION.z,
+                        ),
+                        ..default()
+                    },
+                ))
+                .observe(configure_held_item_view_model)
+                .id();
+            commands.entity(camera_entity).add_child(held);
+        }
+        Some(Item::DirtBucket) => {
+            let held = commands
+                .spawn((
+                    Name::new("Held DirtBucket"),
+                    HeldItemModel,
+                    ShovelSwing::default(),
+                    SceneRoot(inventory_assets.bucket.clone()),
                     Transform {
                         translation: Vec3::new(0.4, -0.2, -0.5),
                         rotation: Quat::from_euler(

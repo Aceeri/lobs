@@ -96,6 +96,10 @@ fn assets() -> impl Bundle {
             "Crab",
             "(https://skfb.ly/ovttx) by Kaniksu is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).",
         ],
+        [
+            "Metal bucket",
+            "(https://skfb.ly/6TGrU) by Kozlov Maksim is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).",
+        ],
     ])
 }
 
