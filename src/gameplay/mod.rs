@@ -8,6 +8,7 @@ use bevy::prelude::*;
 mod animation;
 pub(crate) mod button;
 pub(crate) mod crosshair;
+pub(crate) mod crusts;
 pub(crate) mod dig;
 pub(crate) mod grave;
 pub(crate) mod inventory;
@@ -21,6 +22,7 @@ pub(super) fn plugin(app: &mut App) {
         animation::plugin,
         button::plugin,
         crosshair::plugin,
+        crusts::plugin,
         grave::plugin,
         inventory::plugin,
         npc::plugin,

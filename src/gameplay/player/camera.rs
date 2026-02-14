@@ -17,7 +17,7 @@ use bevy::{
         prepass::{DeferredPrepass, DepthPrepass},
         tonemapping::Tonemapping,
     },
-    light::{NotShadowCaster, ShadowFilteringMethod},
+    light::{FogVolume, NotShadowCaster, ShadowFilteringMethod, VolumetricFog, VolumetricLight},
     post_process::bloom::Bloom,
     prelude::*,
     render::view::Hdr,
@@ -132,7 +132,18 @@ fn spawn_view_model(
                 ),
                 exposure,
                 Tonemapping::TonyMcMapface,
-                Bloom::NATURAL,
+                // Bloom::NATURAL,
+                Bloom {
+                    intensity: 0.2,
+                    max_mip_dimension: 128,
+                    ..Bloom::OLD_SCHOOL
+                },
+                VolumetricFog {
+                    ambient_color: Color::srgb(255.0 / 255.0, 159.0 / 255.0, 0.0),
+                    ambient_intensity: 0.0125, // maybe 0.01 instead?
+                    jitter: 0.0,
+                    step_count: 16,
+                },
                 Skybox {
                     image: level_assets.env_map_specular.clone(),
                     brightness: 8.0,
@@ -226,21 +237,45 @@ fn configure_player_view_model(
 fn add_render_layers_to_point_light(add: On<Add, PointLight>, mut commands: Commands) {
     let entity = add.entity;
     commands.entity(entity).insert(RenderLayers::from(
-        RenderLayer::DEFAULT | RenderLayer::VIEW_MODEL,
+        RenderLayer::DEFAULT | RenderLayer::VIEW_MODEL | RenderLayer::CRAB_HUD,
     ));
 }
 
 fn add_render_layers_to_spot_light(add: On<Add, SpotLight>, mut commands: Commands) {
     let entity = add.entity;
     commands.entity(entity).insert(RenderLayers::from(
-        RenderLayer::DEFAULT | RenderLayer::VIEW_MODEL,
+        RenderLayer::DEFAULT | RenderLayer::VIEW_MODEL | RenderLayer::CRAB_HUD,
     ));
 }
 
 fn add_render_layers_to_directional_light(add: On<Add, DirectionalLight>, mut commands: Commands) {
     let entity = add.entity;
-    commands.entity(entity).insert(RenderLayers::from(
-        RenderLayer::DEFAULT | RenderLayer::VIEW_MODEL,
+    commands
+        .entity(entity)
+        .insert(RenderLayers::from(
+            RenderLayer::DEFAULT | RenderLayer::VIEW_MODEL | RenderLayer::CRAB_HUD,
+        ))
+        .insert(VolumetricLight);
+
+    commands.spawn((
+        Name::new("Fog"),
+        FogVolume {
+            density_factor: 2.0,
+            // fog_color: Color::srgb(255.0 / 255.0, 230.0 / 255.0, 230.0 / 255.0),
+            fog_color: Color::WHITE,
+            absorption: 0.1,
+            scattering: -0.05,
+            scattering_asymmetry: 3.6,
+            light_tint: Color::srgb(255.0 / 255.0, 230.0 / 255.0, 230.0 / 255.0),
+            light_intensity: 100.0,
+            density_texture: default(),
+            density_texture_offset: default(),
+        },
+        Transform {
+            translation: Vec3::ZERO,
+            rotation: Quat::IDENTITY,
+            scale: Vec3::splat(50.0),
+        },
     ));
 }
 

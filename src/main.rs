@@ -256,6 +256,8 @@ bitflags! {
         /// Specifically, the UI camera is a 2D camera, which by default is placed at a far away Z position,
         /// so it will effectively render a very zoomed out view of the scene in the center of the screen.
         const GIZMO3 = 0b0001000;
+        /// Used by the crab HUD render-to-texture camera and crab model.
+        const CRAB_HUD = 0b00010000;
     }
 }
 

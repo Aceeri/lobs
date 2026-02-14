@@ -691,14 +691,14 @@ fn update_held_item(
                     ShovelSwing::default(),
                     SceneRoot(inventory_assets.bucket.clone()),
                     Transform {
-                        translation: Vec3::new(0.4, -0.2, -0.5),
+                        translation: Vec3::new(0.7, -0.2, -1.0),
                         rotation: Quat::from_euler(
                             EulerRot::XYZ,
                             SHOVEL_REST_ROTATION.x,
                             SHOVEL_REST_ROTATION.y,
                             SHOVEL_REST_ROTATION.z,
                         ),
-                        ..default()
+                        scale: Vec3::splat(0.01),
                     },
                 ))
                 .observe(configure_held_item_view_model)
