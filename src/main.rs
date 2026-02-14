@@ -24,8 +24,8 @@ use bevy::log::LogPlugin;
 use bevy::log::tracing_subscriber::field::MakeExt;
 use bevy::pbr::DefaultOpaqueRendererMethod;
 use bevy::{camera::visibility::RenderLayers, ecs::error::error};
-use bevy_seedling::prelude::FirewheelNode;
 use bevy_seedling::SeedlingPlugin;
+use bevy_seedling::prelude::FirewheelNode;
 use bitflags::bitflags;
 
 use bevy::{asset::AssetMetaCheck, prelude::*};
@@ -53,7 +53,7 @@ fn main() -> AppExit {
     app.set_error_handler(error);
 
     // Add Bevy plugins.
-    app.insert_resource(DefaultOpaqueRendererMethod::deferred());
+    // app.insert_resource(DefaultOpaqueRendererMethod::deferred());
     app.add_plugins((
         DefaultPlugins
             .set(AssetPlugin {
@@ -188,9 +188,7 @@ fn parent_firewheel_node(
     mut commands: Commands,
 ) {
     let Some(parent) = parent else { return };
-    commands
-        .entity(_on.entity)
-        .insert(ChildOf(parent.0));
+    commands.entity(_on.entity).insert(ChildOf(parent.0));
 }
 
 fn parent_observer(
@@ -203,9 +201,7 @@ fn parent_observer(
     if children.get(_on.entity).is_ok() {
         return;
     }
-    commands
-        .entity(_on.entity)
-        .insert(ChildOf(parent.0));
+    commands.entity(_on.entity).insert(ChildOf(parent.0));
 }
 
 /// High-level groupings of systems for the app in the [`Update`] schedule.

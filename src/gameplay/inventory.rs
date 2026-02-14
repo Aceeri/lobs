@@ -2,7 +2,8 @@ use std::iter;
 
 use avian3d::prelude::*;
 use bevy::{
-    camera::visibility::RenderLayers, light::NotShadowCaster, prelude::*, scene::SceneInstanceReady,
+    camera::visibility::RenderLayers, light::NotShadowCaster, prelude::*,
+    scene::SceneInstanceReady, ui::widget::ViewportNode,
 };
 use bevy_ahoy::CharacterController;
 use bevy_enhanced_input::prelude::*;
@@ -342,22 +343,22 @@ fn use_tool(
                 direction,
                 GUN_DISTANCE,
                 true,
-                &SpatialQueryFilter::from_mask([
-                    CollisionLayer::Level,
-                    CollisionLayer::Character,
-                ]),
+                &SpatialQueryFilter::from_mask([CollisionLayer::Level, CollisionLayer::Character]),
             ) {
                 if let Ok(mut health) = health_query.get_mut(hit.entity) {
                     health.0 -= GUN_DAMAGE;
                     if health.0 <= 0.0 {
-                        commands.entity(hit.entity).remove::<CharacterController>().insert((
-                            Body,
-                            RigidBody::Dynamic,
-                            CollisionLayers::new(
-                                CollisionLayer::Prop,
-                                [CollisionLayer::Level, CollisionLayer::Prop],
-                            ),
-                        ));
+                        commands
+                            .entity(hit.entity)
+                            .remove::<CharacterController>()
+                            .insert((
+                                Body,
+                                RigidBody::Dynamic,
+                                CollisionLayers::new(
+                                    CollisionLayer::Prop,
+                                    [CollisionLayer::Level, CollisionLayer::Prop],
+                                ),
+                            ));
                     }
                 }
             }
@@ -509,7 +510,47 @@ const INACTIVE_COLOR: Color = Color::srgba(0.3, 0.3, 0.3, 0.4);
 #[derive(Component)]
 struct InventorySlotUi(usize);
 
-fn spawn_inventory_hud(mut commands: Commands) {
+fn spawn_inventory_hud(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    inventory_assets: Res<InventoryAssets>,
+) {
+    use super::crusts::spawn_model_preview;
+
+    // use indices 1..=3 (0 is used by the crusts spinner)
+    let slot_configs: [(Handle<Scene>, Transform, &str); 3] = [
+        (
+            inventory_assets.shovel.clone(),
+            Transform::IDENTITY,
+            "Shovel",
+        ),
+        (
+            inventory_assets.gun.clone(),
+            Transform::from_scale(Vec3::splat(0.01)),
+            "Gun",
+        ),
+        (
+            inventory_assets.bucket.clone(),
+            Transform::from_translation(Vec3::new(0.0, -5.0, 0.0)),
+            "Bucket",
+        ),
+    ];
+    let slot_cameras: Vec<Entity> = slot_configs
+        .into_iter()
+        .enumerate()
+        .map(|(i, (scene, transform, label))| {
+            spawn_model_preview(
+                &mut commands,
+                &mut images,
+                scene,
+                i + 1,
+                0.5,
+                transform,
+                label,
+            )
+        })
+        .collect();
+
     commands
         .spawn((
             Name::new("Inventory HUD"),
@@ -547,12 +588,12 @@ fn spawn_inventory_hud(mut commands: Commands) {
                             BorderColor::all(Color::WHITE),
                         ))
                         .with_child((
-                            Text::new(""),
-                            TextFont {
-                                font_size: 12.0,
+                            ViewportNode::new(slot_cameras[i]),
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
                                 ..default()
                             },
-                            TextColor(Color::WHITE),
                         ));
                     }
                 });
@@ -561,34 +602,16 @@ fn spawn_inventory_hud(mut commands: Commands) {
 
 fn update_inventory_hud(
     inventory: Res<Inventory>,
-    mut slots: Query<(&InventorySlotUi, &mut BackgroundColor, &Children)>,
-    mut texts: Query<&mut Text>,
+    mut slots: Query<(&InventorySlotUi, &mut BackgroundColor)>,
 ) {
-    for (slot_ui, mut bg, children) in &mut slots {
-        let index = slot_ui.0;
-        let is_active = index == inventory.active_slot;
+    for (slot_ui, mut bg) in &mut slots {
+        let is_active = slot_ui.0 == inventory.active_slot;
         *bg = if is_active {
             ACTIVE_COLOR
         } else {
             INACTIVE_COLOR
         }
         .into();
-
-        // kinda wanna display a rotating tool for each of these, would be funny
-        let item_name = if is_active && inventory.using_hands {
-            "Hands".to_string()
-        } else {
-            inventory.slots[index]
-                .as_ref()
-                .map(|item| format!("{:?}", item))
-                .unwrap_or(String::new())
-        };
-
-        for child in children.iter() {
-            if let Ok(mut text) = texts.get_mut(child) {
-                **text = item_name.to_string();
-            }
-        }
     }
 }
 
@@ -790,7 +813,6 @@ fn animate_gun_recoil(time: Res<Time>, mut query: Query<(&mut GunRecoil, &mut Tr
         transform.translation.z = z;
     }
 }
-
 
 fn configure_held_item_view_model(
     ready: On<SceneInstanceReady>,

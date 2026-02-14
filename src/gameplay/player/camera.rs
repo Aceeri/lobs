@@ -165,7 +165,7 @@ fn spawn_view_model(
                     parent.spawn((
                         Name::new("Fog"),
                         FogVolume {
-                            density_factor: 2.0,
+                            density_factor: 0.2,
                             // fog_color: Color::srgb(255.0 / 255.0, 230.0 / 255.0, 230.0 / 255.0),
                             fog_color: Color::WHITE,
                             absorption: 0.2,
