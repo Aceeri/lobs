@@ -113,53 +113,76 @@ fn spawn_view_model(
             SpatialListener3D,
         ))
         .with_children(|parent| {
-            parent.spawn((
-                Name::new("World Model Camera"),
-                WorldModelCamera,
-                Camera3d::default(),
-                Projection::from(PerspectiveProjection {
-                    fov: fov.to_radians(),
-                    ..default()
-                }),
-                Camera {
-                    order: CameraOrder::World.into(),
-                    clear_color: Color::srgb_u8(15, 9, 20).into(),
-                    ..default()
-                },
-                Hdr,
-                RenderLayers::from(
-                    RenderLayer::DEFAULT | RenderLayer::PARTICLES | RenderLayer::GIZMO3,
-                ),
-                exposure,
-                Tonemapping::TonyMcMapface,
-                // Bloom::NATURAL,
-                Bloom {
-                    intensity: 0.2,
-                    max_mip_dimension: 128,
-                    ..Bloom::OLD_SCHOOL
-                },
-                VolumetricFog {
-                    ambient_color: Color::srgb(255.0 / 255.0, 159.0 / 255.0, 0.0),
-                    ambient_intensity: 0.0125, // maybe 0.01 instead?
-                    jitter: 0.0,
-                    step_count: 16,
-                },
-                Skybox {
-                    image: level_assets.env_map_specular.clone(),
-                    brightness: 8.0,
-                    ..default()
-                },
-                env_map.clone(),
-                (
-                    Msaa::Off,
-                    TemporalAntiAliasing::default(),
-                    ShadowFilteringMethod::Temporal,
-                    DeferredPrepass,
-                ),
-                #[cfg(feature = "native")]
-                // See https://github.com/bevyengine/bevy/issues/20459
-                ScreenSpaceAmbientOcclusion::default(),
-            ));
+            parent
+                .spawn((
+                    Name::new("World Model Camera"),
+                    WorldModelCamera,
+                    Camera3d::default(),
+                    Projection::from(PerspectiveProjection {
+                        fov: fov.to_radians(),
+                        ..default()
+                    }),
+                    Camera {
+                        order: CameraOrder::World.into(),
+                        clear_color: Color::srgb_u8(15, 9, 20).into(),
+                        ..default()
+                    },
+                    Hdr,
+                    RenderLayers::from(
+                        RenderLayer::DEFAULT | RenderLayer::PARTICLES | RenderLayer::GIZMO3,
+                    ),
+                    exposure,
+                    Tonemapping::TonyMcMapface,
+                    // Bloom::NATURAL,
+                    Bloom {
+                        intensity: 0.2,
+                        max_mip_dimension: 128,
+                        ..Bloom::OLD_SCHOOL
+                    },
+                    VolumetricFog {
+                        ambient_color: Color::srgb(255.0 / 255.0, 159.0 / 255.0, 0.0),
+                        ambient_intensity: 0.01,
+                        jitter: 0.0,
+                        step_count: 16,
+                    },
+                    Skybox {
+                        image: level_assets.env_map_specular.clone(),
+                        brightness: 8.0,
+                        ..default()
+                    },
+                    env_map.clone(),
+                    (
+                        Msaa::Off,
+                        TemporalAntiAliasing::default(),
+                        ShadowFilteringMethod::Temporal,
+                        DeferredPrepass,
+                    ),
+                    #[cfg(feature = "native")]
+                    // See https://github.com/bevyengine/bevy/issues/20459
+                    ScreenSpaceAmbientOcclusion::default(),
+                ))
+                .with_children(|parent| {
+                    parent.spawn((
+                        Name::new("Fog"),
+                        FogVolume {
+                            density_factor: 2.0,
+                            // fog_color: Color::srgb(255.0 / 255.0, 230.0 / 255.0, 230.0 / 255.0),
+                            fog_color: Color::WHITE,
+                            absorption: 0.2,
+                            scattering: 0.3,
+                            scattering_asymmetry: 0.0,
+                            light_tint: Color::srgb(255.0 / 255.0, 230.0 / 255.0, 230.0 / 255.0),
+                            light_intensity: 5.0,
+                            density_texture: default(),
+                            density_texture_offset: default(),
+                        },
+                        Transform {
+                            translation: Vec3::ZERO,
+                            rotation: Quat::IDENTITY,
+                            scale: Vec3::splat(50.0),
+                        },
+                    ));
+                });
 
             // Spawn view model camera.
             parent.spawn((
@@ -257,26 +280,26 @@ fn add_render_layers_to_directional_light(add: On<Add, DirectionalLight>, mut co
         ))
         .insert(VolumetricLight);
 
-    commands.spawn((
-        Name::new("Fog"),
-        FogVolume {
-            density_factor: 2.0,
-            // fog_color: Color::srgb(255.0 / 255.0, 230.0 / 255.0, 230.0 / 255.0),
-            fog_color: Color::WHITE,
-            absorption: 0.1,
-            scattering: -0.05,
-            scattering_asymmetry: 3.6,
-            light_tint: Color::srgb(255.0 / 255.0, 230.0 / 255.0, 230.0 / 255.0),
-            light_intensity: 100.0,
-            density_texture: default(),
-            density_texture_offset: default(),
-        },
-        Transform {
-            translation: Vec3::ZERO,
-            rotation: Quat::IDENTITY,
-            scale: Vec3::splat(50.0),
-        },
-    ));
+    // commands.spawn((
+    //     Name::new("Fog"),
+    //     FogVolume {
+    //         density_factor: 2.0,
+    //         // fog_color: Color::srgb(255.0 / 255.0, 230.0 / 255.0, 230.0 / 255.0),
+    //         fog_color: Color::WHITE,
+    //         absorption: 0.2,
+    //         scattering: 0.3,
+    //         scattering_asymmetry: 0.0,
+    //         light_tint: Color::srgb(255.0 / 255.0, 230.0 / 255.0, 230.0 / 255.0),
+    //         light_intensity: 1.0,
+    //         density_texture: default(),
+    //         density_texture_offset: default(),
+    //     },
+    //     Transform {
+    //         translation: Vec3::ZERO,
+    //         rotation: Quat::IDENTITY,
+    //         scale: Vec3::splat(50.0),
+    //     },
+    // ));
 }
 
 #[derive(Resource, Reflect, Debug, Deref, DerefMut)]
