@@ -284,11 +284,19 @@ fn draw_skeleton_gizmos(
                 continue;
             };
             let joint_pos = joint_transform.translation();
-            gizmos.sphere(Isometry3d::from_translation(joint_pos), 0.02, Color::srgb(0.0, 1.0, 0.0));
+            gizmos.sphere(
+                Isometry3d::from_translation(joint_pos),
+                0.02,
+                Color::srgb(0.0, 1.0, 0.0),
+            );
 
             if let Ok(parent) = parents.get(joint) {
                 if let Ok(parent_transform) = transforms.get(parent.parent()) {
-                    gizmos.line(parent_transform.translation(), joint_pos, Color::srgb(1.0, 1.0, 0.0));
+                    gizmos.line(
+                        parent_transform.translation(),
+                        joint_pos,
+                        Color::srgb(1.0, 1.0, 0.0),
+                    );
                 }
             }
         }

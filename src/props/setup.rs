@@ -71,10 +71,8 @@ pub(crate) fn static_bundle<T: QuakeClass>(
 ) -> impl Bundle {
     let model = asset_server.load_trenchbroom_model::<T>();
     (
-        ColliderConstructorHierarchy::new(constructor).with_default_layers(CollisionLayers::new(
-            CollisionLayer::Level,
-            LayerMask::ALL,
-        )),
+        ColliderConstructorHierarchy::new(constructor)
+            .with_default_layers(CollisionLayers::new(CollisionLayer::Level, LayerMask::ALL)),
         RigidBody::Static,
         SceneRoot(model),
     )

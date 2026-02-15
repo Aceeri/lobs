@@ -25,10 +25,7 @@ pub(super) fn plugin(app: &mut App) {
     );
 }
 
-fn offset_dialogue_ui(
-    _on: On<Add, UiRootNode>,
-    mut roots: Query<&mut Node, With<UiRootNode>>,
-) {
+fn offset_dialogue_ui(_on: On<Add, UiRootNode>, mut roots: Query<&mut Node, With<UiRootNode>>) {
     for mut node in &mut roots {
         node.padding.bottom = Val::Px(90.0);
     }

@@ -1,4 +1,5 @@
-use avian3d::prelude::{Collider, RigidBody};
+use crate::third_party::avian3d::CollisionLayer;
+use avian3d::prelude::*;
 use bevy::asset::RenderAssetUsages;
 use bevy::math::DVec3;
 use bevy::mesh::PrimitiveTopology;
@@ -43,6 +44,10 @@ pub enum VoxelFill {
 pub(crate) struct VoxelVolume {
     pub fill: VoxelFill,
 }
+
+/// Relationship from a VoxelAabb collider child to its parent VoxelVolume entity.
+#[derive(Component)]
+pub(crate) struct VoxelAabbOf(pub Entity);
 
 impl Default for VoxelVolume {
     fn default() -> Self {
@@ -118,15 +123,31 @@ fn init_voxel_volumes(
         let mesh_center =
             Vec3::new(bounds.x as f32, bounds.y as f32, bounds.z as f32) * VOXEL_SIZE * 0.5;
         let translation = aabb_center - mesh_center;
-        commands.entity(entity).insert((
-            sim,
-            RigidBody::Static,
-            Transform::from_translation(translation),
-        ));
+        let world_size = Vec3::new(bounds.x as f32, bounds.y as f32, bounds.z as f32) * VOXEL_SIZE;
+
+        commands
+            .entity(entity)
+            .insert((
+                sim,
+                RigidBody::Static,
+                Transform::from_translation(translation),
+            ))
+            .with_child((
+                Name::new("VoxelAabb"),
+                VoxelAabbOf(entity),
+                Collider::cuboid(world_size.x, world_size.y, world_size.z),
+                Sensor,
+                CollisionLayers::new(CollisionLayer::VoxelAabb, LayerMask::ALL),
+                Transform::from_translation(mesh_center),
+            ));
     }
 }
 
-fn voxel_sim(time: Res<Time>, mut timer: ResMut<VoxelSimTimer>, mut sims: Query<(&mut VoxelSim, &mut DirtyBuffer)>) {
+fn voxel_sim(
+    time: Res<Time>,
+    mut timer: ResMut<VoxelSimTimer>,
+    mut sims: Query<(&mut VoxelSim, &mut DirtyBuffer)>,
+) {
     timer.0.tick(time.delta());
     if !timer.0.just_finished() {
         return;

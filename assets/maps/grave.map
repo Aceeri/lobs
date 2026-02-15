@@ -742,8 +742,8 @@
 // entity 18
 {
 "classname" "button"
-"origin" "-120 -600 72"
-"angles" "0 0 90"
+"origin" "-48 -672 72"
+"angles" "0 0 -90"
 "_tb_layer" "1"
 }
 // entity 19

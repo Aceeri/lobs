@@ -241,7 +241,6 @@ fn on_spawn_body(
         };
 
         let t = transform.compute_transform();
-        let forward = t.forward();
 
         commands
             .spawn((
@@ -251,9 +250,12 @@ fn on_spawn_body(
                 RigidBody::Dynamic,
                 CollisionLayers::new(
                     CollisionLayer::Prop,
-                    [CollisionLayer::Level, CollisionLayer::Prop],
+                    [
+                        CollisionLayer::Level,
+                        CollisionLayer::Prop,
+                        CollisionLayer::Sensor,
+                    ],
                 ),
-                LinearVelocity(*forward * BODY_SPAWN_SPEED),
                 t,
             ))
             .with_child((
@@ -284,8 +286,7 @@ fn slot_bodies_in_graves(
                 state.filled += 1;
                 commands
                     .entity(colliding_entity)
-                    .remove::<(RigidBody, Collider, CollisionLayers)>()
-                    .insert(GraveSlotted);
+                    .insert((GraveSlotted, RigidBody::Static));
             }
         }
     }

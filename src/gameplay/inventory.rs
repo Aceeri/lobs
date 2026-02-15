@@ -13,7 +13,7 @@ use crate::{
     RenderLayer,
     asset_tracking::LoadResource,
     gameplay::{
-        dig::{VOXEL_SIZE, Voxel, VoxelSim},
+        dig::{VOXEL_SIZE, Voxel, VoxelAabbOf, VoxelSim},
         npc::{Body, Health},
         player::camera::PlayerCamera,
     },
@@ -299,6 +299,7 @@ fn use_tool(
     mut commands: Commands,
     dig_effect: Res<DigParticleEffect>,
     muzzle_effect: Res<MuzzleFlashEffect>,
+    q_aabb_of: Query<&VoxelAabbOf>,
 ) {
     dig_cooldown.timer.tick(time.delta());
     if dig_cooldown.timer.just_finished() {
@@ -341,15 +342,12 @@ fn use_tool(
             let origin = camera_transform.translation;
             let direction = camera_transform.forward();
 
-            let mut gun_filter = SpatialQueryFilter::from_mask([CollisionLayer::Level, CollisionLayer::Character]);
+            let mut gun_filter =
+                SpatialQueryFilter::from_mask([CollisionLayer::Level, CollisionLayer::Character]);
             gun_filter.excluded_entities.insert(*player_entity);
-            if let Some(hit) = spatial_query.cast_ray(
-                origin,
-                direction,
-                GUN_DISTANCE,
-                true,
-                &gun_filter,
-            ) {
+            if let Some(hit) =
+                spatial_query.cast_ray(origin, direction, GUN_DISTANCE, true, &gun_filter)
+            {
                 if let Ok(mut health) = health_query.get_mut(hit.entity) {
                     health.0 -= GUN_DAMAGE;
                     if health.0 <= 0.0 {
@@ -387,7 +385,9 @@ fn use_tool(
             if !dig_cooldown.ready {
                 return;
             }
-            if let Some(hit_point) = fill_voxel(&player, &spatial_query, &mut voxel_sims) {
+            if let Some(hit_point) =
+                fill_voxel(&player, &spatial_query, &mut voxel_sims, &q_aabb_of)
+            {
                 commands.spawn((
                     ParticleEffect::new(dig_effect.0.clone()),
                     RenderLayers::from(RenderLayer::DEFAULT),
@@ -456,38 +456,83 @@ fn dig_voxel(
     Some(surface_point)
 }
 
-/// Returns the world-space hit point if voxels were filled with dirt.
+/// Returns the world-space fill point if voxels were filled with dirt.
+/// Raycasts against both the VoxelAabb boundary and existing voxel geometry,
+/// then places dirt at whichever hit is closer.
 fn fill_voxel(
     player: &GlobalTransform,
     spatial_query: &SpatialQuery,
     voxel_sims: &mut Query<(&mut VoxelSim, &GlobalTransform)>,
+    q_aabb_of: &Query<&VoxelAabbOf>,
 ) -> Option<Vec3> {
     let camera_transform = player.compute_transform();
     let origin = camera_transform.translation;
     let direction = camera_transform.forward();
 
-    let hit = spatial_query.cast_ray(
-        origin,
+    let aabb_origin = origin + *direction * 0.5;
+    let voxel_origin = origin;
+
+    let aabb_hit = spatial_query.cast_ray(
+        aabb_origin,
+        direction,
+        DIG_DISTANCE,
+        false,
+        &SpatialQueryFilter::from_mask(CollisionLayer::VoxelAabb),
+    );
+
+    let voxel_hit = spatial_query.cast_ray(
+        voxel_origin,
         direction,
         DIG_DISTANCE,
         true,
         &SpatialQueryFilter::from_mask(CollisionLayer::Level),
-    )?;
+    );
 
-    let Ok((mut sim, sim_transform)) = voxel_sims.get_mut(hit.entity) else {
-        return None;
+    const BIAS: f32 = 0.1;
+    let (hit_entity, world_point) = match (aabb_hit, voxel_hit) {
+        (Some(aabb), Some(voxel)) => {
+            if aabb.distance < voxel.distance {
+                let parent = q_aabb_of
+                    .get(aabb.entity)
+                    .map(|a| a.0)
+                    .unwrap_or(aabb.entity);
+                (
+                    parent,
+                    aabb_origin + *direction * aabb.distance + *direction * BIAS,
+                )
+            } else {
+                (
+                    voxel.entity,
+                    voxel_origin + *direction * voxel.distance - *direction * BIAS,
+                )
+            }
+        }
+        (Some(aabb), None) => {
+            let parent = q_aabb_of
+                .get(aabb.entity)
+                .map(|a| a.0)
+                .unwrap_or(aabb.entity);
+            (
+                parent,
+                origin + *direction * aabb.distance + *direction * BIAS,
+            )
+        }
+        (None, Some(voxel)) => (
+            voxel.entity,
+            origin + *direction * voxel.distance - *direction * BIAS,
+        ),
+        (None, None) => return None,
     };
 
-    // negative bias: push back toward player so dirt builds on the near side
-    const BIAS: f32 = 0.1;
-    let hit_point = origin + *direction * hit.distance - *direction * BIAS;
-    let surface_point = origin + *direction * hit.distance;
+    let Ok((mut sim, sim_transform)) = voxel_sims.get_mut(hit_entity) else {
+        return None;
+    };
 
     let local = sim_transform
         .compute_transform()
         .compute_affine()
         .inverse()
-        .transform_point3(hit_point);
+        .transform_point3(world_point);
     let center = (local / VOXEL_SIZE).floor().as_ivec3();
 
     let r = DIG_RADIUS as i32;
@@ -504,7 +549,7 @@ fn fill_voxel(
         }
     }
 
-    Some(surface_point)
+    Some(world_point)
 }
 
 const SLOT_SIZE: f32 = 60.0;

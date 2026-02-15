@@ -143,7 +143,8 @@ fn rotate_npc(
 
         // lerp the physics and "to player" directions
         let t = (speed / NPC_SPEED).clamp(0.0, 1.0);
-        let blended = to_player_hz.normalize_or_zero() * (1.0 - t) + hz_velocity.normalize_or_zero() * t;
+        let blended =
+            to_player_hz.normalize_or_zero() * (1.0 - t) + hz_velocity.normalize_or_zero() * t;
         let Ok(target_dir) = Dir3::new(blended) else {
             continue;
         };

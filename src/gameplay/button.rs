@@ -68,8 +68,16 @@ fn on_add_button(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let top_mesh = meshes.add(Cuboid::new(BUTTON_TOP_WIDTH, BUTTON_TOP_HEIGHT, BUTTON_TOP_WIDTH));
-    let base_mesh = meshes.add(Cuboid::new(BUTTON_BASE_WIDTH, BUTTON_BASE_HEIGHT, BUTTON_BASE_WIDTH));
+    let top_mesh = meshes.add(Cuboid::new(
+        BUTTON_TOP_WIDTH,
+        BUTTON_TOP_HEIGHT,
+        BUTTON_TOP_WIDTH,
+    ));
+    let base_mesh = meshes.add(Cuboid::new(
+        BUTTON_BASE_WIDTH,
+        BUTTON_BASE_HEIGHT,
+        BUTTON_BASE_WIDTH,
+    ));
 
     let red = materials.add(StandardMaterial {
         base_color: Color::srgb(0.8, 0.1, 0.1),
@@ -198,8 +206,8 @@ fn animate_button_press(time: Res<Time>, mut query: Query<(&mut ButtonPress, &mu
             press.current_scale = BUTTON_PRESSED_SCALE;
             BUTTON_PRESSED_SCALE
         } else {
-            let t = (press.timer.elapsed_secs() / press.timer.duration().as_secs_f32())
-                .clamp(0.0, 1.0);
+            let t =
+                (press.timer.elapsed_secs() / press.timer.duration().as_secs_f32()).clamp(0.0, 1.0);
             let s = 1.0 + (BUTTON_PRESSED_SCALE - 1.0) * t;
             press.current_scale = s;
             s
