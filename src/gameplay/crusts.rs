@@ -12,7 +12,7 @@ use bevy::{
 use crate::{RenderLayer, asset_tracking::LoadResource, screens::Screen};
 
 // hacky shit, should probably just have separate render layers or a closer `far` or something
-const PREVIEW_SPACING: f32 = 1000.0;
+const PREVIEW_SPACING: f32 = 100.0;
 const PREVIEW_BASE_Y: f32 = -1000.0;
 
 #[derive(Component)]
@@ -75,6 +75,11 @@ pub fn spawn_model_preview(
         .spawn((
             Name::new("Preview Camera"),
             Camera3d::default(),
+            Projection::Perspective(PerspectiveProjection {
+                far: 10.0, // clip close
+                near: 0.01,
+                ..default()
+            }),
             Camera {
                 order: 0,
                 clear_color: ClearColorConfig::Custom(Color::NONE),
@@ -199,8 +204,15 @@ pub fn plugin(app: &mut App) {
     app.add_observer(configure_preview_render_layers);
 }
 
+// TODO: make this a per player thing when we add coop
 #[derive(Resource, Default)]
 pub(crate) struct Crusts(pub(crate) u32);
+
+impl Crusts {
+    pub fn add(&mut self, amount: u32) {
+        self.0 += amount;
+    }
+}
 
 #[derive(Resource, Asset, Clone, Reflect)]
 #[reflect(Resource)]

@@ -6,6 +6,7 @@ use bevy_trenchbroom::geometry::{Brushes, BrushesAsset};
 use bevy_trenchbroom::prelude::*;
 
 use super::npc::{Body, NpcRegistry};
+use crate::gameplay::crusts::Crusts;
 use crate::screens::Screen;
 use crate::third_party::avian3d::CollisionLayer;
 
@@ -16,6 +17,10 @@ pub fn plugin(app: &mut App) {
             init_graves,
             make_grave_colliders_sensors,
             slot_bodies_in_graves,
+            lerp_slotted_bodies,
+            grave_reward, // give crust for each slotted body
+                          // TODO:
+                          // grave_material, // material to guide player to the graves (do a little white adjustment?)
         ),
     );
     app.add_systems(Update, tutorial_spawn.run_if(in_state(Screen::Gameplay)));
@@ -58,6 +63,7 @@ impl Default for Grave {
 struct GraveState {
     slots: u32,
     filled: u32,
+    rewarded: u32,
 }
 
 #[derive(Component)]
@@ -65,6 +71,11 @@ struct GraveSensor(Entity);
 
 #[derive(Component)]
 pub(crate) struct GraveSlotted;
+
+#[derive(Component)]
+struct GraveLerp {
+    target_y: f32,
+}
 
 fn init_graves(
     mut commands: Commands,
@@ -108,6 +119,7 @@ fn init_graves(
         commands.entity(entity).insert(GraveState {
             slots: grave.slots,
             filled: 0,
+            rewarded: 0,
         });
 
         commands.spawn((
@@ -268,11 +280,11 @@ fn on_spawn_body(
 
 fn slot_bodies_in_graves(
     mut commands: Commands,
-    sensors: Query<(&GraveSensor, &CollidingEntities)>,
+    sensors: Query<(&GraveSensor, &CollidingEntities, &Transform)>,
     mut graves: Query<&mut GraveState>,
     bodies: Query<Entity, (With<Body>, Without<GraveSlotted>)>,
 ) {
-    for (sensor, colliding) in &sensors {
+    for (sensor, colliding, sensor_transform) in &sensors {
         let Ok(mut state) = graves.get_mut(sensor.0) else {
             continue;
         };
@@ -284,10 +296,49 @@ fn slot_bodies_in_graves(
 
             if bodies.get(colliding_entity).is_ok() {
                 state.filled += 1;
-                commands
-                    .entity(colliding_entity)
-                    .insert((GraveSlotted, RigidBody::Static));
+                commands.entity(colliding_entity).insert((
+                    GraveSlotted,
+                    RigidBody::Static,
+                    GraveLerp {
+                        target_y: sensor_transform.translation.y,
+                    },
+                ));
             }
+        }
+    }
+}
+
+const GRAVE_LERP_SPEED: f32 = 5.0;
+
+fn lerp_slotted_bodies(
+    mut commands: Commands,
+    mut bodies: Query<(Entity, &mut Transform, &GraveLerp)>,
+    time: Res<Time>,
+) {
+    for (entity, mut transform, lerp) in &mut bodies {
+        let diff = lerp.target_y - transform.translation.y;
+        if diff.abs() < 0.01 {
+            transform.translation.y = lerp.target_y;
+            commands.entity(entity).remove::<GraveLerp>();
+        } else {
+            transform.translation.y += diff * GRAVE_LERP_SPEED * time.delta_secs();
+        }
+    }
+}
+
+fn grave_reward(
+    mut graves: Query<(Entity, &GraveState)>,
+    mut crusts: ResMut<Crusts>,
+    // mut players: Query<&mut Crusts, With<Player>>,
+) {
+    for (entity, state) in &mut graves {
+        // TODO: check grave fill amount (we need 90% dirt fill for reward)
+        if state.filled == state.slots {
+            let to_give = state.filled.saturating_sub(state.rewarded);
+            crusts.add(to_give);
+            // for crusts in &mut players {
+            //     crusts.add(state.filled);
+            // }
         }
     }
 }
