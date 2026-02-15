@@ -15,7 +15,9 @@ pub(crate) mod inventory;
 pub(crate) mod level;
 pub(crate) mod npc;
 pub(crate) mod player;
+pub(crate) mod ragdoll;
 pub(crate) mod scenario;
+pub(crate) mod store;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins((
