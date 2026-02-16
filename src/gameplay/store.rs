@@ -81,8 +81,9 @@ impl UpgradeLevels {
     }
 
     fn cost_for(&self, upgrade: &str) -> u32 {
-        1u32.checked_shl(self.level_for(upgrade))
-            .unwrap_or(u32::MAX)
+        1
+        // 1u32.checked_shl(self.level_for(upgrade))
+        // .unwrap_or(u32::MAX)
     }
 }
 
@@ -220,9 +221,9 @@ fn interact_with_upgrade(
     };
 
     let cost = upgrade_levels.cost_for(&station.upgrade);
-    // if !crusts.try_spend(cost) {
-    //     return;
-    // }
+    if !crusts.try_spend(cost) {
+        return;
+    }
 
     apply_upgrade(&station.upgrade, &mut inventory, &mut player_health);
     upgrade_levels.increment(&station.upgrade);
