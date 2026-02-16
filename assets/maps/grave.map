@@ -771,6 +771,7 @@
 "origin" "232 8 40"
 "tag" "larry"
 "yarn_node" "Lefty_Larry"
+"health" "1000.000000"
 "_tb_layer" "1"
 }
 // entity 17
