@@ -1,13 +1,16 @@
 # This config is used for the release workflow.
 
+[unstable]
+build-std = ["std", "panic_abort"]
+
 [target.wasm32-unknown-unknown]
 rustflags = [
     # Improve performance
     "--cfg",
     "web_sys_unstable_apis",
     # sign-ext, nontrapping: improve performance
-    # atomics and the following args: enable multi-threading
-    "-Ctarget-feature=+sign-ext,+nontrapping-fptoint,+atomics",
+    # atomics, bulk-memory and the following args: enable multi-threading
+    "-Ctarget-feature=+sign-ext,+nontrapping-fptoint,+atomics,+bulk-memory",
     "-Clink-arg=--shared-memory",
     "-Clink-arg=--max-memory=1073741824",
     "-Clink-arg=--import-memory",
@@ -19,6 +22,6 @@ rustflags = [
     "-Zshare-generics=y",
     "-Zthreads=8",
 ]
-[profile.web-relese]
+[profile.web-release]
 codegen_units = 1
 lto = "Fat"
