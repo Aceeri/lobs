@@ -5,13 +5,13 @@
 # but you can also run it locally if you want to run `bevy run --release`.
 # Make sure to have installed `kram`, and `magick` in your PATH.
 
+import concurrent.futures
+import math
+import multiprocessing
+import os
 import shutil
 import subprocess
 import sys
-import os
-import math
-import concurrent.futures
-import multiprocessing
 
 ORIGINAL_ASSETS_DIR = "assets"
 BAKED_ASSETS_DIR = "assets_baked"
@@ -157,7 +157,7 @@ def process_texture(file_path):
             "magick",
             file_path,
             "-quality",
-             "85",
+            "85",
             jpg_output,
         ]
         subprocess.run(magick_command, check=True, capture_output=True)
@@ -184,12 +184,22 @@ def point_gltf_textures_to_ktx2():
 
     for root, _dirs, files in os.walk(models_path):
         for file in files:
-            if os.path.splitext(file)[1] in GLTF_EXTENSIONS:
-                path = os.path.join(root, file)
+            ext = os.path.splitext(file)[1]
+            if ext not in GLTF_EXTENSIONS:
+                continue
+            path = os.path.join(root, file)
+            if ext == ".glb":
+                with open(path, "rb") as f:
+                    content = f.read()
+                for tex_ext in TEXTURE_EXTENSIONS:
+                    content = content.replace(tex_ext.encode(), b".ktx2")
+                with open(path, "wb") as f:
+                    f.write(content)
+            else:
                 with open(path, "r") as f:
                     content = f.read()
-                for ext in TEXTURE_EXTENSIONS:
-                    content = content.replace(ext, ".ktx2")
+                for tex_ext in TEXTURE_EXTENSIONS:
+                    content = content.replace(tex_ext, ".ktx2")
                 with open(path, "w") as f:
                     f.write(content)
 
@@ -224,7 +234,7 @@ def resize_to_pot(input_path: str, output_path: str):
                 output_path,
             ],
             check=True,
-            capture_output=True
+            capture_output=True,
         )
 
 
