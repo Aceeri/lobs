@@ -20,6 +20,7 @@ pub(super) fn plugin(app: &mut App) {
         Update,
         (
             update_loading_assets_label,
+            tick_asset_loading_timeout,
             enter_compile_shader_screen
                 .run_if(all_assets_loaded.and(in_state(LoadingScreen::Assets))),
         ),
@@ -36,6 +37,7 @@ fn spawn_or_skip_asset_loading_screen(
         next_screen.set(LoadingScreen::Shaders);
         return;
     }
+    commands.insert_resource(AssetLoadingTimeout(Timer::from_seconds(10.0, TimerMode::Once)));
     let f = &font.0;
     commands.spawn((
         widget::ui_root("Loading Screen"),
@@ -65,6 +67,22 @@ fn update_loading_assets_label(
         );
     }
 }
+#[derive(Resource)]
+struct AssetLoadingTimeout(Timer);
+
+fn tick_asset_loading_timeout(
+    time: Res<Time>,
+    timeout: Option<ResMut<AssetLoadingTimeout>>,
+    mut next_screen: ResMut<NextState<LoadingScreen>>,
+) {
+    let Some(mut timeout) = timeout else { return };
+    timeout.0.tick(time.delta());
+    if timeout.0.just_finished() {
+        warn!("Asset loading timed out after 10s, skipping to shader compilation");
+        next_screen.set(LoadingScreen::Shaders);
+    }
+}
+
 fn all_assets_loaded(resource_handles: Res<ResourceHandles>) -> bool {
     resource_handles.is_all_done()
 }
