@@ -2,25 +2,34 @@
 
 use avian3d::prelude::*;
 use bevy::prelude::*;
+use bevy_seedling::prelude::*;
+use bevy_seedling::sample::AudioSample;
 use std::f32::consts::{PI, TAU};
 
 use crate::{
-    gameplay::player::{Invincible, Player, PlayerHealth, hurt_player},
+    audio::SpatialPool,
+    gameplay::{
+        player::{Invincible, Player, PlayerHealth, hurt_player},
+        tags::TagIndex,
+    },
     screens::Screen,
     third_party::avian3d::CollisionLayer,
 };
 
-use super::{EnemyGunner, NpcAggro};
+use super::{EnemyGunner, Health, NpcAggro, NpcDead};
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(
         FixedUpdate,
         (
+            resolve_aggro_targets,
+            aggro_swap,
             enemy_detection,
             rotate_alert_enemies,
             npc_shoot,
             move_projectiles,
             projectile_hit_player,
+            projectile_hit_npc,
             projectile_hit_level,
         )
             .chain()
@@ -37,6 +46,7 @@ pub(super) fn plugin(app: &mut App) {
 struct ProjectileAssets {
     mesh: Handle<Mesh>,
     material: Handle<StandardMaterial>,
+    gunshot: Handle<AudioSample>,
 }
 
 fn init_projectile_assets(
@@ -44,6 +54,7 @@ fn init_projectile_assets(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
+    asset_server: Res<AssetServer>,
     existing: Option<Res<ProjectileAssets>>,
 ) {
     if existing.is_some() {
@@ -57,6 +68,7 @@ fn init_projectile_assets(
             unlit: true,
             ..default()
         }),
+        gunshot: asset_server.load("audio/sound_effects/smg_shot.ogg"),
     });
 }
 
@@ -123,6 +135,16 @@ pub(crate) struct EnemyAlert {
     lose_sight_timer: Timer,
 }
 
+#[derive(Component)]
+pub(crate) struct AggroTarget(pub Entity);
+
+#[derive(Component)]
+pub(crate) struct AggroConfig {
+    pub target_tag: String,
+    pub aggro_radius: f32,
+    pub swapped_to_player: bool,
+}
+
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
@@ -138,6 +160,71 @@ const LOSE_SIGHT_DURATION: f32 = 3.0;
 // Systems
 // ---------------------------------------------------------------------------
 
+fn resolve_aggro_targets(
+    mut commands: Commands,
+    tag_index: Res<TagIndex>,
+    mut enemies: Query<
+        (Entity, &mut AggroConfig),
+        (With<NpcAggro>, Without<AggroTarget>),
+    >,
+    dead: Query<(), With<NpcDead>>,
+    player: Option<Single<Entity, With<Player>>>,
+) {
+    let Some(player) = player else { return };
+    let player_entity = *player;
+
+    for (entity, mut config) in &mut enemies {
+        if config.target_tag.is_empty() {
+            commands.entity(entity).insert(AggroTarget(player_entity));
+            config.swapped_to_player = true;
+            continue;
+        }
+
+        let target = tag_index
+            .get(&config.target_tag)
+            .and_then(|set| set.iter().find(|e| dead.get(**e).is_err()))
+            .copied();
+
+        match target {
+            Some(t) => {
+                commands.entity(entity).insert(AggroTarget(t));
+            }
+            None => {
+                commands.entity(entity).insert(AggroTarget(player_entity));
+                config.swapped_to_player = true;
+            }
+        }
+    }
+}
+
+fn aggro_swap(
+    mut enemies: Query<(&GlobalTransform, &mut AggroTarget, &mut AggroConfig), With<NpcAggro>>,
+    player: Option<Single<(Entity, &GlobalTransform), With<Player>>>,
+    dead: Query<(), With<NpcDead>>,
+) {
+    let Some(player) = player else { return };
+    let (player_entity, player_transform) = *player;
+    let player_pos = player_transform.translation();
+
+    for (npc_transform, mut target, mut config) in &mut enemies {
+        if config.swapped_to_player {
+            continue;
+        }
+
+        if dead.get(target.0).is_ok() {
+            target.0 = player_entity;
+            config.swapped_to_player = true;
+            continue;
+        }
+
+        let distance = npc_transform.translation().distance(player_pos);
+        if distance < config.aggro_radius {
+            target.0 = player_entity;
+            config.swapped_to_player = true;
+        }
+    }
+}
+
 fn enemy_detection(
     mut commands: Commands,
     time: Res<Time>,
@@ -147,35 +234,40 @@ fn enemy_detection(
             Entity,
             &NpcShooter,
             &GlobalTransform,
+            Option<&AggroTarget>,
             Option<&mut EnemyAlert>,
         ),
         With<NpcAggro>,
     >,
     player: Option<Single<&GlobalTransform, With<Player>>>,
+    transforms: Query<&GlobalTransform>,
 ) {
     let Some(player) = player else { return };
     let player_pos = player.translation();
 
-    for (entity, shooter, npc_transform, alert) in &mut enemies {
-        let npc_pos = npc_transform.translation();
-        let to_player = player_pos - npc_pos;
-        let distance = to_player.length();
+    for (entity, shooter, npc_transform, aggro_target, alert) in &mut enemies {
+        let target_pos = aggro_target
+            .and_then(|at| transforms.get(at.0).ok())
+            .map(|gt| gt.translation())
+            .unwrap_or(player_pos);
 
-        // Horizontal direction to player
-        let to_player_hz = Vec3::new(to_player.x, 0.0, to_player.z);
-        // Enemy's horizontal forward from GlobalTransform
+        let npc_pos = npc_transform.translation();
+        let to_target = target_pos - npc_pos;
+        let distance = to_target.length();
+
+        let to_target_hz = Vec3::new(to_target.x, 0.0, to_target.z);
         let forward = npc_transform.forward().as_vec3();
         let forward_hz = Vec3::new(forward.x, 0.0, forward.z);
 
         let can_see = if distance < 0.01 || distance > shooter.range {
             false
-        } else if let (Ok(to_dir), Ok(fwd_dir)) = (Dir3::new(to_player_hz), Dir3::new(forward_hz)) {
+        } else if let (Ok(to_dir), Ok(fwd_dir)) = (Dir3::new(to_target_hz), Dir3::new(forward_hz)) {
             let dot = to_dir.dot(*fwd_dir);
             let in_fov = dot >= DETECTION_HALF_ANGLE.cos(); // cos(60°) = 0.5
 
             if in_fov {
                 // LOS check
-                let direction = Dir3::new(to_player).unwrap();
+                let direction = Dir3::new(to_target).unwrap();
                 let los_hit = spatial_query.cast_ray(
                     npc_pos,
                     direction,
@@ -193,7 +285,7 @@ fn enemy_detection(
 
         match alert {
             Some(mut alert) if can_see => {
-                alert.last_seen_position = player_pos;
+                alert.last_seen_position = target_pos;
                 alert.lose_sight_timer.reset();
             }
             Some(mut alert) => {
@@ -205,7 +297,7 @@ fn enemy_detection(
             }
             None if can_see => {
                 commands.entity(entity).insert(EnemyAlert {
-                    last_seen_position: player_pos,
+                    last_seen_position: target_pos,
                     lose_sight_timer: Timer::from_seconds(LOSE_SIGHT_DURATION, TimerMode::Once),
                 });
             }
@@ -236,21 +328,30 @@ fn npc_shoot(
     mut commands: Commands,
     time: Res<Time>,
     assets: Option<Res<ProjectileAssets>>,
-    mut shooters: Query<(&mut NpcShooter, &GlobalTransform, &EnemyAlert), With<NpcAggro>>,
+    mut shooters: Query<
+        (&mut NpcShooter, &GlobalTransform, &EnemyAlert, Option<&AggroTarget>),
+        With<NpcAggro>,
+    >,
     player: Option<Single<&GlobalTransform, With<Player>>>,
+    transforms: Query<&GlobalTransform>,
 ) {
     let Some(assets) = assets else { return };
     let Some(player) = player else { return };
     let player_pos = player.translation();
 
-    for (mut shooter, npc_transform, _alert) in &mut shooters {
+    for (mut shooter, npc_transform, _alert, aggro_target) in &mut shooters {
         shooter.fire_rate.tick(time.delta());
         if !shooter.fire_rate.just_finished() {
             continue;
         }
 
         let npc_pos = npc_transform.translation();
-        let to_player = player_pos - npc_pos;
+
+        let target_pos = aggro_target
+            .and_then(|at| transforms.get(at.0).ok())
+            .map(|gt| gt.translation())
+            .unwrap_or(player_pos);
+        let to_target = target_pos - npc_pos;
 
         // Spawn projectiles
         let spawn_pos = npc_pos + Vec3::Y * 0.8; // roughly gun height
@@ -266,7 +367,7 @@ fn npc_shoot(
                 }
             }
             FiringPattern::AimedSpread => {
-                let forward_hz = Vec3::new(to_player.x, 0.0, to_player.z).normalize_or_zero();
+                let forward_hz = Vec3::new(to_target.x, 0.0, to_target.z).normalize_or_zero();
                 if forward_hz.length_squared() < 0.01 {
                     continue;
                 }
@@ -283,6 +384,13 @@ fn npc_shoot(
                 }
             }
         }
+
+        // Gunshot sound at the enemy's position
+        commands.spawn((
+            SamplePlayer::new(assets.gunshot.clone()),
+            SpatialPool,
+            Transform::from_translation(npc_pos),
+        ));
     }
 }
 
@@ -342,6 +450,44 @@ fn projectile_hit_player(
         for hit_entity in &hits {
             if *hit_entity == player_entity {
                 hurt_player(&mut commands, player_entity, &mut health, invincible);
+                commands.entity(proj_entity).despawn();
+                break;
+            }
+        }
+    }
+}
+
+fn projectile_hit_npc(
+    mut commands: Commands,
+    spatial_query: SpatialQuery,
+    projectiles: Query<(Entity, &GlobalTransform, &Collider), With<EnemyProjectile>>,
+    player: Option<Single<Entity, With<Player>>>,
+    mut health_query: Query<&mut Health, Without<Player>>,
+) {
+    let player_entity = player.map(|p| *p);
+
+    for (proj_entity, proj_transform, proj_collider) in &projectiles {
+        if commands.get_entity(proj_entity).is_err() {
+            continue;
+        }
+
+        let hits = spatial_query.shape_intersections(
+            proj_collider,
+            proj_transform.translation(),
+            proj_transform.to_isometry().rotation,
+            &SpatialQueryFilter::from_mask(CollisionLayer::Character),
+        );
+
+        for hit_entity in &hits {
+            if player_entity == Some(*hit_entity) {
+                continue;
+            }
+
+            if let Ok(mut health) = health_query.get_mut(*hit_entity) {
+                health.0 -= 10.0;
+                if health.0 <= 0.0 {
+                    commands.entity(*hit_entity).insert(NpcDead);
+                }
                 commands.entity(proj_entity).despawn();
                 break;
             }

@@ -48,11 +48,13 @@ fn on_scenario_trigger(event: On<ScenarioTrigger>, mut commands: Commands) {
             commands.trigger(SpawnNpc::Direct {
                 spawner_name: spawner_name.clone(),
                 model: model.clone(),
+                overrides: default(),
             });
         }
         ScenarioTrigger::QueueSpawnNpc { spawner_name } => {
             commands.trigger(SpawnNpc::Queue {
                 spawner_name: spawner_name.clone(),
+                overrides: default(),
             });
         }
     }

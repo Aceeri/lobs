@@ -137,13 +137,12 @@ impl Default for Objectives {
                             commands.trigger(FlickerLight::new("tutorial_hallway"));
                             commands.trigger(SpawnNpc::Queue {
                                 spawner_name: "tutorial_whale".to_string(),
+                                overrides: default(),
                             });
                         })
-                        .hook(|npcs: Query<(&Tags, &Health)>| -> u32 {
-                            let hit = npcs.iter().any(|(tags, health)| {
-                                tags.contains("tutorial_whale") && health.0 < 100.0
-                            });
-                            if hit { 1 } else { 0 }
+                        .hook(|dead: Query<&Tags, With<NpcDead>>| -> u32 {
+                            let killed = dead.iter().any(|tags| tags.contains("tutorial_whale"));
+                            if killed { 1 } else { 0 }
                         })
                         .on_complete(|mut commands: Commands| {
                             commands.trigger(SpawnEnemy::Queue {
@@ -153,10 +152,24 @@ impl Default for Objectives {
                     SubObjective::binary("bury_whale", "bury the whale")
                         .hook(player_in_sensor(&["tutorial_hallway"])),
                     SubObjective::tracked("help_larry", "help larry, shoot the octopi", 2)
+                        .on_start(|mut yarn_nodes: Query<(&Tags, &mut YarnNode)>| {
+                            for (tags, mut node) in &mut yarn_nodes {
+                                if tags.contains("larry") {
+                                    node.yarn_node = "Under_Attack".to_string();
+                                }
+                            }
+                        })
                         .hook(|dead: Query<&Tags, With<NpcDead>>| -> u32 {
                             dead.iter()
                                 .filter(|tags| tags.contains("tutorial_octopus"))
                                 .count() as u32
+                        })
+                        .on_complete(|mut yarn_nodes: Query<(&Tags, &mut YarnNode)>| {
+                            for (tags, mut node) in &mut yarn_nodes {
+                                if tags.contains("larry") {
+                                    node.yarn_node = "Relief".to_string();
+                                }
+                            }
                         }),
                     SubObjective::tracked(
                         "bury_whale_octopi",

@@ -17,7 +17,7 @@ use crate::{
     audio::SpatialPool,
     gameplay::{
         dig::{VOXEL_SIZE, Voxel, VoxelAabbOf, VoxelSim},
-        npc::Health,
+        npc::{Health, shooting::{AggroConfig, AggroTarget}},
         player::camera::PlayerCamera,
     },
     screens::Screen,
@@ -353,7 +353,7 @@ fn use_tool(
     mut voxel_sims: Query<(&mut VoxelSim, &GlobalTransform)>,
     mut shovel: Query<&mut ShovelSwing>,
     mut gun_recoil: Query<&mut GunRecoil>,
-    mut health_query: Query<&mut Health>,
+    mut health_query: Query<(&mut Health, Option<&mut AggroConfig>)>,
     mut commands: Commands,
     mut tool_effects: ResMut<ToolEffects>,
     q_aabb_of: Query<&VoxelAabbOf>,
@@ -425,10 +425,18 @@ fn use_tool(
             if let Some(hit) =
                 spatial_query.cast_ray(origin, direction, stats.distance, true, &gun_filter)
             {
-                if let Ok(mut health) = health_query.get_mut(hit.entity) {
+                if let Ok((mut health, aggro_config)) = health_query.get_mut(hit.entity) {
                     health.0 -= stats.damage;
                     if health.0 <= 0.0 {
                         commands.entity(hit.entity).insert(super::npc::NpcDead);
+                    }
+                    if let Some(mut config) = aggro_config {
+                        if !config.swapped_to_player {
+                            config.swapped_to_player = true;
+                            commands
+                                .entity(hit.entity)
+                                .insert(AggroTarget(*player_entity));
+                        }
                     }
                 }
 

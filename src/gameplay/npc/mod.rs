@@ -169,7 +169,7 @@ impl Default for NpcRegistry {
                 radius: NPC_RADIUS,
                 height: NPC_HEIGHT,
                 body: BodyConfig {
-                    model_rotation: Quat::from_rotation_x(std::f32::consts::PI),
+                    model_rotation: Quat::IDENTITY,
                     ..BodyConfig::default()
                 },
                 gun_offset: DEFAULT_GUN_OFFSET,
@@ -223,6 +223,10 @@ pub(crate) struct EnemyGunner {
     pub projectile_count: u32,
     /// Aggro/firing range.
     pub range: f32,
+    /// Tag to auto-target (e.g. "larry"). Empty = target player.
+    pub target_tag: String,
+    /// Radius for player proximity aggro swap.
+    pub aggro_radius: f32,
 }
 
 impl Default for EnemyGunner {
@@ -236,6 +240,8 @@ impl Default for EnemyGunner {
             projectile_speed: 5.0,
             projectile_count: 12,
             range: 20.0,
+            target_tag: String::new(),
+            aggro_radius: 15.0,
         }
     }
 }
@@ -415,6 +421,18 @@ fn on_add_enemy_gunner(
 
     let display_name = npc_display_name(&model_key, "Gunner", &npc_tags);
 
+    let aggro_config = gunner
+        .map(|g| shooting::AggroConfig {
+            target_tag: g.target_tag.trim().to_string(),
+            aggro_radius: g.aggro_radius,
+            swapped_to_player: false,
+        })
+        .unwrap_or(shooting::AggroConfig {
+            target_tag: String::new(),
+            aggro_radius: 15.0,
+            swapped_to_player: false,
+        });
+
     commands.entity(entity).insert((
         Name::new(display_name),
         Collider::cylinder(NPC_RADIUS, NPC_HEIGHT),
@@ -434,6 +452,7 @@ fn on_add_enemy_gunner(
         GunOffset(gun_offset),
         NpcAggro,
         shooter,
+        aggro_config,
         npc_tags,
     ));
 
@@ -520,6 +539,8 @@ fn on_npc_death(
             YarnNode,
             shooting::NpcShooter,
             shooting::EnemyAlert,
+            shooting::AggroTarget,
+            shooting::AggroConfig,
         )>()
         .insert((
             Name::new(dead_name),
@@ -605,10 +626,24 @@ fn init_npc_spawner(
     });
 }
 
+#[derive(Default, Clone)]
+pub(crate) struct NpcOverrides {
+    pub health: Option<f32>,
+    pub tag: Option<String>,
+    pub yarn_node: Option<String>,
+}
+
 #[derive(Event)]
 pub(crate) enum SpawnNpc {
-    Queue { spawner_name: String },
-    Direct { spawner_name: String, model: String },
+    Queue {
+        spawner_name: String,
+        overrides: NpcOverrides,
+    },
+    Direct {
+        spawner_name: String,
+        model: String,
+        overrides: NpcOverrides,
+    },
 }
 
 fn on_spawn_npc(
@@ -616,13 +651,18 @@ fn on_spawn_npc(
     mut commands: Commands,
     mut spawners: Query<(&NpcSpawner, &GlobalTransform, &mut NpcSpawnerState)>,
 ) {
-    let (target_spawner, target_model): (&str, Option<&str>) = match &*event {
-        SpawnNpc::Queue { spawner_name } => (spawner_name.as_str(), None),
-        SpawnNpc::Direct {
-            spawner_name,
-            model,
-        } => (spawner_name.as_str(), Some(model.as_str())),
-    };
+    let (target_spawner, target_model, overrides): (&str, Option<&str>, &NpcOverrides) =
+        match &*event {
+            SpawnNpc::Queue {
+                spawner_name,
+                overrides,
+            } => (spawner_name.as_str(), None, overrides),
+            SpawnNpc::Direct {
+                spawner_name,
+                model,
+                overrides,
+            } => (spawner_name.as_str(), Some(model.as_str()), overrides),
+        };
 
     for (spawner, transform, mut state) in &mut spawners {
         if spawner.name != target_spawner {
@@ -643,19 +683,19 @@ fn on_spawn_npc(
         };
 
         let t = transform.compute_transform();
-        let tag = spawner.tag.clone();
+        let tag = overrides.tag.clone().unwrap_or_else(|| spawner.tag.clone());
 
         let spawned = commands
             .spawn((
                 Npc {
-                    tag,
-                    yarn_node: String::new(),
+                    tag: tag.clone(),
+                    yarn_node: overrides.yarn_node.clone().unwrap_or_default(),
                     model: model_key.clone(),
-                    health: 0.0,
+                    health: overrides.health.unwrap_or(0.0),
                 },
                 t,
                 Visibility::default(),
-                Tags::from_csv(&spawner.tag),
+                Tags::from_csv(&tag),
             ))
             .id();
 
@@ -731,6 +771,10 @@ pub(crate) struct EnemySpawner {
     pub projectile_count: u32,
     /// Aggro/firing range for spawned enemies.
     pub range: f32,
+    /// Tag to auto-target for spawned enemies. Empty = target player.
+    pub target_tag: String,
+    /// Radius for player proximity aggro swap for spawned enemies.
+    pub aggro_radius: f32,
 }
 
 impl Default for EnemySpawner {
@@ -745,6 +789,8 @@ impl Default for EnemySpawner {
             projectile_speed: 5.0,
             projectile_count: 12,
             range: 20.0,
+            target_tag: String::new(),
+            aggro_radius: 15.0,
         }
     }
 }
@@ -827,6 +873,8 @@ fn on_spawn_enemy(
                     projectile_speed: spawner.projectile_speed,
                     projectile_count: spawner.projectile_count,
                     range: spawner.range,
+                    target_tag: spawner.target_tag.clone(),
+                    aggro_radius: spawner.aggro_radius,
                 },
                 t,
                 Visibility::default(),
@@ -873,6 +921,8 @@ fn respawn_fallen_enemies(
                         projectile_speed: spawner.projectile_speed,
                         projectile_count: spawner.projectile_count,
                         range: spawner.range,
+                        target_tag: spawner.target_tag.clone(),
+                        aggro_radius: spawner.aggro_radius,
                     },
                     t,
                     Visibility::default(),
