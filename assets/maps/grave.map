@@ -1017,7 +1017,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 30
 {
@@ -1028,7 +1028,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 31
 {
@@ -1039,7 +1039,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 32
 {
@@ -1050,7 +1050,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 33
 {
@@ -1061,7 +1061,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 34
 {
@@ -1072,7 +1072,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 35
 {
@@ -1083,7 +1083,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 36
 {
@@ -1094,7 +1094,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 37
 {
@@ -1105,7 +1105,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 38
 {
@@ -1116,7 +1116,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 39
 {
@@ -1127,7 +1127,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 40
 {
@@ -1138,7 +1138,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 41
 {
@@ -1149,7 +1149,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 42
 {
@@ -1160,7 +1160,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 43
 {
@@ -1171,7 +1171,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 44
 {
@@ -1182,7 +1182,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 45
 {
@@ -1193,7 +1193,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 46
 {
@@ -1204,7 +1204,7 @@
 "model" "octopus"
 "tag" "whale_spam_gang_1"
 "range" "30"
-"angles" "0 -90 0"
+"angles" "0 90 0"
 }
 // entity 47
 {
