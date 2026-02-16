@@ -353,7 +353,7 @@ fn use_tool(
     mut voxel_sims: Query<(&mut VoxelSim, &GlobalTransform)>,
     mut shovel: Query<&mut ShovelSwing>,
     mut gun_recoil: Query<&mut GunRecoil>,
-    mut health_query: Query<(&mut Health, Option<&mut AggroConfig>)>,
+    mut health_query: Query<(&mut Health, Option<&mut AggroConfig>, Option<&Name>)>,
     mut commands: Commands,
     mut tool_effects: ResMut<ToolEffects>,
     q_aabb_of: Query<&VoxelAabbOf>,
@@ -425,7 +425,7 @@ fn use_tool(
             if let Some(hit) =
                 spatial_query.cast_ray(origin, direction, stats.distance, true, &gun_filter)
             {
-                if let Ok((mut health, aggro_config)) = health_query.get_mut(hit.entity) {
+                if let Ok((mut health, aggro_config, _)) = health_query.get_mut(hit.entity) {
                     health.0 -= stats.damage;
                     if health.0 <= 0.0 {
                         commands.entity(hit.entity).insert(super::npc::NpcDead);

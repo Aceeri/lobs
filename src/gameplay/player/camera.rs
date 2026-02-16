@@ -104,7 +104,8 @@ fn spawn_view_model(
                 },
                 hold: AvianPickupActorHoldConfig {
                     distance_to_allow_holding: 3.5,
-                    linear_velocity_easing: 0.7,
+                    linear_velocity_easing: 0.3,
+                    preferred_distance: 2.0,
                     ..default()
                 },
                 ..default()

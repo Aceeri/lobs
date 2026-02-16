@@ -76,6 +76,25 @@ fn init_projectile_assets(
 // Components
 // ---------------------------------------------------------------------------
 
+#[derive(Component, Clone, Debug)]
+pub(crate) struct Faction(pub String);
+
+impl Faction {
+    /// Returns true if a projectile from `self` faction is allowed to hurt `target` faction.
+    pub fn can_hurt(&self, target: &Faction) -> bool {
+        match (self.0.as_str(), target.0.as_str()) {
+            // Player can hurt everyone
+            ("player", _) => true,
+            // Lobster (larry) shouldn't hurt the player
+            ("lobster", "player") => false,
+            // Enemies shouldn't hurt other enemies
+            ("enemy", "enemy") => false,
+            // Everything else is fair game
+            _ => true,
+        }
+    }
+}
+
 #[derive(Component)]
 pub(crate) struct EnemyProjectile;
 
@@ -329,7 +348,13 @@ fn npc_shoot(
     time: Res<Time>,
     assets: Option<Res<ProjectileAssets>>,
     mut shooters: Query<
-        (&mut NpcShooter, &GlobalTransform, &EnemyAlert, Option<&AggroTarget>),
+        (
+            &mut NpcShooter,
+            &GlobalTransform,
+            &EnemyAlert,
+            Option<&AggroTarget>,
+            Option<&Faction>,
+        ),
         With<NpcAggro>,
     >,
     player: Option<Single<&GlobalTransform, With<Player>>>,
@@ -339,7 +364,10 @@ fn npc_shoot(
     let Some(player) = player else { return };
     let player_pos = player.translation();
 
-    for (mut shooter, npc_transform, _alert, aggro_target) in &mut shooters {
+    for (mut shooter, npc_transform, _alert, aggro_target, faction) in &mut shooters {
+        let faction = faction
+            .cloned()
+            .unwrap_or(Faction("enemy".to_string()));
         shooter.fire_rate.tick(time.delta());
         if !shooter.fire_rate.just_finished() {
             continue;
@@ -363,7 +391,13 @@ fn npc_shoot(
                 for i in 0..count {
                     let angle = (i as f32 / count as f32) * TAU;
                     let dir = Vec3::new(angle.cos(), 0.0, angle.sin());
-                    spawn_projectile(&mut commands, &assets, spawn_pos, dir * speed);
+                    spawn_projectile(
+                        &mut commands,
+                        &assets,
+                        spawn_pos,
+                        dir * speed,
+                        faction.clone(),
+                    );
                 }
             }
             FiringPattern::AimedSpread => {
@@ -380,7 +414,13 @@ fn npc_shoot(
                     let angle = t * SPREAD_HALF_ANGLE;
                     let rot = Quat::from_rotation_y(angle);
                     let dir = rot * forward_hz;
-                    spawn_projectile(&mut commands, &assets, spawn_pos, dir * speed);
+                    spawn_projectile(
+                        &mut commands,
+                        &assets,
+                        spawn_pos,
+                        dir * speed,
+                        faction.clone(),
+                    );
                 }
             }
         }
@@ -394,10 +434,17 @@ fn npc_shoot(
     }
 }
 
-fn spawn_projectile(commands: &mut Commands, assets: &ProjectileAssets, pos: Vec3, velocity: Vec3) {
+fn spawn_projectile(
+    commands: &mut Commands,
+    assets: &ProjectileAssets,
+    pos: Vec3,
+    velocity: Vec3,
+    faction: Faction,
+) {
     commands.spawn((
         Name::new("Enemy Projectile"),
         EnemyProjectile,
+        faction,
         Projectile {
             velocity,
             lifetime: Timer::from_seconds(PROJECTILE_LIFETIME, TimerMode::Once),
@@ -405,6 +452,7 @@ fn spawn_projectile(commands: &mut Commands, assets: &ProjectileAssets, pos: Vec
         Mesh3d(assets.mesh.clone()),
         MeshMaterial3d(assets.material.clone()),
         Transform::from_translation(pos),
+        RigidBody::Kinematic,
         Collider::sphere(0.1),
         Sensor,
         CollisionLayers::new(
@@ -432,14 +480,20 @@ fn move_projectiles(
 fn projectile_hit_player(
     mut commands: Commands,
     spatial_query: SpatialQuery,
-    projectiles: Query<(Entity, &GlobalTransform, &Collider), With<EnemyProjectile>>,
+    projectiles: Query<(Entity, &GlobalTransform, &Collider, &Faction), With<EnemyProjectile>>,
     mut player: Query<(Entity, &mut PlayerHealth, Option<&Invincible>), With<Player>>,
 ) {
     let Ok((player_entity, mut health, invincible)) = player.single_mut() else {
         return;
     };
 
-    for (proj_entity, proj_transform, proj_collider) in &projectiles {
+    let player_faction = Faction("player".to_string());
+
+    for (proj_entity, proj_transform, proj_collider, proj_faction) in &projectiles {
+        if !proj_faction.can_hurt(&player_faction) {
+            continue;
+        }
+
         let hits = spatial_query.shape_intersections(
             proj_collider,
             proj_transform.translation(),
@@ -460,13 +514,13 @@ fn projectile_hit_player(
 fn projectile_hit_npc(
     mut commands: Commands,
     spatial_query: SpatialQuery,
-    projectiles: Query<(Entity, &GlobalTransform, &Collider), With<EnemyProjectile>>,
+    projectiles: Query<(Entity, &GlobalTransform, &Collider, &Faction), With<EnemyProjectile>>,
     player: Option<Single<Entity, With<Player>>>,
-    mut health_query: Query<&mut Health, Without<Player>>,
+    mut health_query: Query<(&mut Health, Option<&Faction>), Without<Player>>,
 ) {
     let player_entity = player.map(|p| *p);
 
-    for (proj_entity, proj_transform, proj_collider) in &projectiles {
+    for (proj_entity, proj_transform, proj_collider, proj_faction) in &projectiles {
         if commands.get_entity(proj_entity).is_err() {
             continue;
         }
@@ -483,14 +537,22 @@ fn projectile_hit_npc(
                 continue;
             }
 
-            if let Ok(mut health) = health_query.get_mut(*hit_entity) {
-                health.0 -= 10.0;
-                if health.0 <= 0.0 {
-                    commands.entity(*hit_entity).insert(NpcDead);
-                }
-                commands.entity(proj_entity).despawn();
-                break;
+            let Ok((mut health, target_faction)) = health_query.get_mut(*hit_entity) else {
+                continue;
+            };
+            let target_faction = target_faction
+                .cloned()
+                .unwrap_or(Faction("enemy".to_string()));
+            if !proj_faction.can_hurt(&target_faction) {
+                continue;
             }
+
+            health.0 -= 10.0;
+            if health.0 <= 0.0 {
+                commands.entity(*hit_entity).insert(NpcDead);
+            }
+            commands.entity(proj_entity).despawn();
+            break;
         }
     }
 }

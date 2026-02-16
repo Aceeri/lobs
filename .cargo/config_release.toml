@@ -22,6 +22,6 @@ rustflags = [
     "-Zshare-generics=y",
     "-Zthreads=8",
 ]
-[profile.web-release]
-codegen_units = 1
-lto = "fat"
+# [profile.web-release]
+# codegen_units = 1
+# lto = "fat"

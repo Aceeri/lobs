@@ -182,7 +182,7 @@
 {
 "classname" "enemy_gunner"
 "origin" "-904 104 56"
-"projectile_count" "8"
+"projectile_count" "5"
 "model" "octopus"
 }
 // entity 9
@@ -190,7 +190,7 @@
 "classname" "enemy_gunner"
 "origin" "-1048 88 56"
 "pattern" "spread"
-"projectile_count" "4"
+"projectile_count" "5"
 "model" "octopus"
 }
 // entity 10
@@ -199,7 +199,7 @@
 "origin" "-1000 -520 40"
 "name" "tutorial_whale"
 "model" "whale"
-"tag" "tutorial,tutorial_whale"
+"tag" "tutorial,tutorial_whale,whale"
 }
 // entity 11
 {
@@ -775,7 +775,7 @@
 {
 "classname" "npc"
 "origin" "232 8 40"
-"tag" "larry"
+"tag" "larry,lobster"
 "yarn_node" "Lefty_Larry"
 "health" "1000.000000"
 "_tb_layer" "1"

@@ -315,7 +315,7 @@ fn on_spawn_body(
             .with_child((
                 Name::new("Body Model"),
                 SceneRoot(assets.load(prefab.scene.clone())),
-                Transform::from_rotation(prefab.body.model_rotation),
+                prefab.body.model_transform,
             ))
             .id();
 
@@ -371,7 +371,7 @@ fn respawn_fallen_bodies(
                 .with_child((
                     Name::new("Body Model"),
                     SceneRoot(assets.load(prefab.scene.clone())),
-                    Transform::from_rotation(prefab.body.model_rotation),
+                    prefab.body.model_transform,
                 ))
                 .id();
 

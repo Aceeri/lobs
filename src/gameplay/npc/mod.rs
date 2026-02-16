@@ -1,5 +1,7 @@
 //! NPC spawning, death, and related systems.
 
+use std::f32::consts::PI;
+
 use avian3d::prelude::*;
 use bevy::{ecs::entity::EntityHashSet, prelude::*};
 
@@ -69,7 +71,9 @@ struct GunOffset(Vec3);
 #[derive(Component, Clone)]
 pub(crate) struct BodyConfig {
     pub collider: ColliderConstructor,
-    pub model_rotation: Quat,
+    pub alive_collider_transform: Transform,
+    pub dead_collider_transform: Transform,
+    pub model_transform: Transform,
     pub density: f32,
 }
 
@@ -77,7 +81,11 @@ impl Default for BodyConfig {
     fn default() -> Self {
         Self {
             collider: ColliderConstructor::ConvexHullFromMesh,
-            model_rotation: Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2),
+            alive_collider_transform: Transform::IDENTITY,
+            dead_collider_transform: Transform::IDENTITY,
+            model_transform: Transform::from_rotation(Quat::from_rotation_y(
+                -std::f32::consts::FRAC_PI_2,
+            )),
             density: 1000.0,
         }
     }
@@ -92,7 +100,7 @@ pub(crate) struct NpcPrefab {
     pub gun_offset: Vec3,
 }
 
-const DEFAULT_GUN_OFFSET: Vec3 = Vec3::new(0.7, 0.3, 0.7);
+const DEFAULT_GUN_OFFSET: Vec3 = Vec3::new(0.7, 0.3, -0.4);
 
 #[derive(Resource)]
 pub(crate) struct NpcRegistry {
@@ -138,7 +146,14 @@ impl Default for NpcRegistry {
                 scene: "models/Whale.glb#Scene0".into(),
                 radius: NPC_RADIUS,
                 height: NPC_HEIGHT,
-                body: BodyConfig::default(),
+                body: BodyConfig {
+                    model_transform: Transform {
+                        // translation: Vec3::new(0.0, 2.0, 0.0),
+                        rotation: Quat::from_rotation_y(PI / 2.0),
+                        ..default()
+                    },
+                    ..default()
+                },
                 gun_offset: DEFAULT_GUN_OFFSET,
             },
         );
@@ -166,10 +181,13 @@ impl Default for NpcRegistry {
             "octopus".into(),
             NpcPrefab {
                 scene: "models/Octopus.glb#Scene0".into(),
-                radius: NPC_RADIUS,
-                height: NPC_HEIGHT,
+                radius: 0.8,
+                height: 3.0,
                 body: BodyConfig {
-                    model_rotation: Quat::IDENTITY,
+                    dead_collider_transform: Transform {
+                        translation: Vec3::new(0.0, 2.0, 0.0),
+                        ..default()
+                    },
                     ..BodyConfig::default()
                 },
                 gun_offset: DEFAULT_GUN_OFFSET,
@@ -254,8 +272,8 @@ pub(crate) struct Body;
 #[derive(Component)]
 pub(crate) struct Health(pub f32);
 
-pub(crate) const NPC_RADIUS: f32 = 0.6;
-pub(crate) const NPC_HEIGHT: f32 = 1.3;
+pub(crate) const NPC_RADIUS: f32 = 1.0;
+pub(crate) const NPC_HEIGHT: f32 = 6.0;
 const NPC_HALF_HEIGHT: f32 = NPC_HEIGHT / 2.0;
 const NPC_FLOAT_HEIGHT: f32 = NPC_HALF_HEIGHT + 0.01;
 const NPC_SPEED: f32 = 7.0;
@@ -352,26 +370,23 @@ fn on_add(
         body_config.clone(),
         GunOffset(gun_offset),
         npc_tags.clone(),
+        shooting::Faction("lobster".to_string()),
     ));
 
     if !yarn_node.is_empty() {
         entity_commands.insert(YarnNode::new(&yarn_node));
     }
 
-    let (scene, rotation) = if let Some(prefab) = prefab {
-        (assets.load(&prefab.scene), prefab.body.model_rotation)
+    let (scene, model_transform) = if let Some(prefab) = prefab {
+        (assets.load(&prefab.scene), prefab.body.model_transform)
     } else {
         (
             assets.load_trenchbroom_model::<Npc>(),
-            Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2),
+            BodyConfig::default().model_transform,
         )
     };
 
-    entity_commands.with_child((
-        Name::new("Npc Model"),
-        SceneRoot(scene),
-        Transform::from_xyz(0.0, 0.0, 0.0).with_rotation(rotation),
-    ));
+    entity_commands.with_child((Name::new("Npc Model"), SceneRoot(scene), model_transform));
 }
 
 fn on_add_enemy_gunner(
@@ -454,22 +469,21 @@ fn on_add_enemy_gunner(
         shooter,
         aggro_config,
         npc_tags,
+        shooting::Faction("enemy".to_string()),
     ));
 
-    let (scene, rotation) = if let Some(prefab) = prefab {
-        (assets.load(&prefab.scene), prefab.body.model_rotation)
+    let (scene, model_transform) = if let Some(prefab) = prefab {
+        (assets.load(&prefab.scene), prefab.body.model_transform)
     } else {
         (
             assets.load_trenchbroom_model::<EnemyGunner>(),
-            Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2),
+            BodyConfig::default().model_transform,
         )
     };
 
-    commands.entity(entity).with_child((
-        Name::new("Npc Model"),
-        SceneRoot(scene),
-        Transform::from_xyz(0.0, 0.0, 0.0).with_rotation(rotation),
-    ));
+    commands
+        .entity(entity)
+        .with_child((Name::new("Npc Model"), SceneRoot(scene), model_transform));
 }
 
 fn on_npc_aggro(
@@ -489,7 +503,7 @@ fn on_npc_aggro(
         NpcAggroGun,
         SceneRoot(assets.load("models/tommy_gun.glb#Scene0")),
         Transform::from_translation(offset)
-            .with_rotation(Quat::from_rotation_y(std::f32::consts::FRAC_PI_2))
+            .with_rotation(Quat::from_rotation_y(-std::f32::consts::FRAC_PI_2))
             .with_scale(Vec3::splat(0.01)),
     ));
 }
