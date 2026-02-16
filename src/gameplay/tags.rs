@@ -6,7 +6,8 @@ pub fn plugin(app: &mut App) {
     app.add_observer(on_remove_tags);
 }
 
-#[derive(Component, Clone, Debug)]
+#[derive(Component, Clone, Debug, Reflect)]
+#[reflect(Component)]
 pub(crate) struct Tags(pub Vec<String>);
 
 impl Tags {

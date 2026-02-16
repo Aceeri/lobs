@@ -44,6 +44,20 @@ pub(crate) fn player_in_sensor(
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, init_sensor_areas);
+    app.add_observer(strip_sensor_area_physics);
+}
+
+fn strip_sensor_area_physics(
+    _on: On<Add, Collider>,
+    mut commands: Commands,
+    areas: Query<Entity, With<SensorArea>>,
+) {
+    let Ok(entity) = areas.get(_on.entity) else {
+        return;
+    };
+    commands
+        .entity(entity)
+        .remove::<(RigidBody, Collider, CollisionLayers, ColliderDensity)>();
 }
 
 #[solid_class(base(Transform, Visibility))]

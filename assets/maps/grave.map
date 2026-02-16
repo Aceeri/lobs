@@ -153,7 +153,7 @@
 // entity 4
 {
 "classname" "light"
-"origin" "-52 -676 140"
+"origin" "-52 -668 140"
 "intensity" "500.000000"
 "targetname" ""
 "tags" "tutorial_expressway"
@@ -984,19 +984,12 @@
 // entity 31
 {
 "classname" "body_spawner"
-"origin" "-48.625 -616.375 224"
+"origin" "-48.625 -616.375 448"
 "name" "tutorial_spawner"
 "queue" "octopus,octopus,octopus"
 "_tb_layer" "1"
 }
 // entity 32
-{
-"classname" "button"
-"origin" "-48 -672 72"
-"angles" "0 0 -90"
-"_tb_layer" "1"
-}
-// entity 33
 {
 "classname" "func_group"
 "_tb_type" "_tb_layer"

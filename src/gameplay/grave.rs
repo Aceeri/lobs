@@ -46,7 +46,8 @@ impl Default for Grave {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub(crate) struct GraveState {
     pub(crate) slots: u32,
     pub(crate) filled: u32,
@@ -68,7 +69,8 @@ struct GraveCenter(Vec3);
 #[derive(Component)]
 struct GraveSensor(Entity);
 
-#[derive(Component)]
+#[derive(Component, Reflect)]
+#[reflect(Component)]
 pub(crate) struct Slotted;
 
 #[derive(Component)]
