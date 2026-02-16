@@ -138,27 +138,6 @@ jobs:
       - name: Create tools directory
         run: mkdir baking_tools
 
-      - name: Install kram
-        run: |
-          mkdir -p baking_tools/kram
-          cd baking_tools/kram
-          wget https://github.com/alecazam/kram/releases/download/v1.7.30/kram-linux.zip
-          unzip kram-linux.zip
-          chmod +x kram
-          cd ..
-          mv kram kram-linux
-          ln -s kram-linux/kram kram
-
-      - name: Install ImageMagick
-        uses: mfinelli/setup-imagemagick@v6
-
-      - name: Bake assets
-        run: |
-          PATH="$PATH:$PWD/baking_tools"
-          python3 scripts/bake_assets.py
-          rm -rf assets
-          mv assets_baked assets
-
       - name: Upload assets
         uses: actions/upload-artifact@v4
         with:
