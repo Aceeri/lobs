@@ -1,5 +1,5 @@
 [package]
-name = "foxtrot"
+name = "the_lob"
 description = "A 3D reference project and tech demo for the Bevy Engine."
 license = "MIT OR Apache-2.0 OR CC0-1.0"
 authors = ["Jan Hohenheim <jan@hohenheim.ch>"]
@@ -8,9 +8,9 @@ edition = "2024"
 exclude = ["assets"]
 readme = "readme.md"
 keywords = ["bevy", "demo", "3d", "game"]
-repository = "https://github.com/janhohenheim/foxtrot"
+repository = "https://github.com/aceeri/lobs"
 categories = ["game-development"]
-homepage = "https://janhohenheim.itch.io/foxtrot"
+homepage = "https://aceeri.itch.io/thelob"
 
 [dependencies]
 bevy = { version = "0.18", default-features = false, features = [
@@ -40,7 +40,6 @@ bevy = { version = "0.18", default-features = false, features = [
     "custom_cursor",
     "default_font",
     "hdr",
-    "multi_threaded",
     "smaa_luts",
     "sysinfo_plugin",
     "tonemapping_luts",
@@ -102,6 +101,8 @@ bincode = "2"
 # Latest version that works with bevy_seedling
 wasm-bindgen = { version = "=0.2.108", optional = true }
 
+bevy_mod_billboard = "0.7"
+
 bevy_hanabi = { version = "0.18", default-features = false, features = [
     "3d",
     "gpu_tests",
@@ -112,7 +113,7 @@ default = [
     # Default to a native dev build.
     "dev_native",
 ]
-native = []
+native = ["bevy/multi_threaded"]
 dev = [
     # Improve compile times for dev builds by linking Bevy as a dynamic library.
     "bevy/dynamic_linking",
@@ -135,7 +136,7 @@ dev_native = [
     "bevy/embedded_watcher",
     "bevy_rerecast/editor_integration",
 ]
-web = ["bevy/webgpu", "bevy_seedling/web_audio", "dep:wasm-bindgen"]
+web = ["bevy/webgpu", "dep:wasm-bindgen"]
 release = []
 
 [package.metadata.bevy_cli]
@@ -160,7 +161,7 @@ features = ["dev"]
 features = ["release"]
 
 [package.metadata.bevy_cli.unstable]
-web-multi-threading = true
+web-multi-threading = false
 
 [lints.clippy]
 # Bevy supplies arguments to systems via dependency injection, so it's natural for systems to
@@ -193,3 +194,4 @@ bevy_framepace = { git = "https://github.com/aevyrie/bevy_framepace" }
 # Avian 0.6 not released yet
 bevy_trenchbroom = { git = "https://github.com/janhohenheim/bevy_trenchbroom", branch = "avian-0.6" }
 bevy_trenchbroom_avian = { git = "https://github.com/janhohenheim/bevy_trenchbroom", branch = "avian-0.6" }
+bevy_mod_billboard = { git = "https://github.com/slyedoc/bevy_mod_billboard", branch = "bevy-0.18" }

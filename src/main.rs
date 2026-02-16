@@ -65,7 +65,7 @@ fn main() -> AppExit {
             })
             .set(WindowPlugin {
                 primary_window: Window {
-                    title: "Foxtrot".to_string(),
+                    title: "The Lob".to_string(),
                     fit_canvas_to_parent: true,
                     #[cfg(feature = "web")]
                     prevent_default_event_handling: true,
@@ -112,7 +112,8 @@ fn main() -> AppExit {
         #[cfg(feature = "native")]
         SeedlingPlugin::default(),
         #[cfg(feature = "web")]
-        SeedlingPlugin::new_web_audio(),
+        SeedlingPlugin::default(),
+        // SeedlingPlugin::new_web_audio(),
     ));
 
     app.insert_resource(GlobalAmbientLight::NONE);

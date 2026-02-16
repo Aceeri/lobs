@@ -6,7 +6,7 @@ use crate::{
     gameplay::{crosshair::CrosshairState, player::input::BlocksInput},
     menus::Menu,
     screens::Screen,
-    theme::widget,
+    theme::{GameFont, widget},
 };
 use bevy::{input::common_conditions::input_just_pressed, prelude::*};
 
@@ -23,16 +23,18 @@ fn spawn_pause_menu(
     mut crosshair: Single<&mut CrosshairState>,
     mut time: ResMut<Time<Virtual>>,
     mut blocks_input: ResMut<BlocksInput>,
+    font: Res<GameFont>,
 ) {
+    let f = &font.0;
     commands.spawn((
         widget::ui_root("Pause Menu"),
         GlobalZIndex(2),
         DespawnOnExit(Menu::Pause),
         children![
-            widget::header("Game paused"),
-            widget::button("Continue", close_menu),
-            widget::button("Settings", open_settings_menu),
-            widget::button("Quit to title", quit_to_title),
+            widget::header("paused", f),
+            widget::button("continue", close_menu, f),
+            widget::button("settings", open_settings_menu, f),
+            widget::button("quit to title", quit_to_title, f),
         ],
     ));
     crosshair

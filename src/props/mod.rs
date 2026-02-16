@@ -7,7 +7,7 @@ mod brush_entity;
 mod effects;
 mod generic;
 mod setup;
-mod specific;
+pub(crate) mod specific;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins((

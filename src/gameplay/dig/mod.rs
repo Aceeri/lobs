@@ -1,3 +1,4 @@
+use crate::gameplay::tags::Tags;
 use crate::third_party::avian3d::CollisionLayer;
 use avian3d::prelude::*;
 use bevy::asset::RenderAssetUsages;
@@ -43,16 +44,29 @@ pub enum VoxelFill {
 #[solid_class(base(Transform, Visibility))]
 pub(crate) struct VoxelVolume {
     pub fill: VoxelFill,
+    pub tags: String,
 }
 
 /// Relationship from a VoxelAabb collider child to its parent VoxelVolume entity.
 #[derive(Component)]
 pub(crate) struct VoxelAabbOf(pub Entity);
 
+/// World-space AABB of the voxel volume brush, for spatial queries.
+#[derive(Component)]
+pub(crate) struct VoxelWorldBounds {
+    pub min: Vec3,
+    pub max: Vec3,
+}
+
+/// Graves contained within this voxel volume.
+#[derive(Component, Default)]
+pub(crate) struct VoxelGraves(pub Vec<Entity>);
+
 impl Default for VoxelVolume {
     fn default() -> Self {
         Self {
             fill: VoxelFill::default(),
+            tags: String::new(),
         }
     }
 }
@@ -118,6 +132,9 @@ fn init_voxel_volumes(
             }
         }
 
+        // Don't let the initial fill trigger a full-volume simulate pass.
+        sim.clear_modified();
+
         // center the voxel mesh on the brush AABB, should align it ok with trenchbroom
         let aabb_center = ((min + max) * 0.5).as_vec3();
         let mesh_center =
@@ -130,7 +147,14 @@ fn init_voxel_volumes(
             .insert((
                 sim,
                 RigidBody::Static,
+                CollisionLayers::new(CollisionLayer::Level, LayerMask::ALL),
                 Transform::from_translation(translation),
+                Tags::from_csv(&volume.tags),
+                VoxelWorldBounds {
+                    min: min.as_vec3(),
+                    max: max.as_vec3(),
+                },
+                VoxelGraves::default(),
             ))
             .with_child((
                 Name::new("VoxelAabb"),
@@ -192,6 +216,8 @@ pub fn remesh_voxels(
             commands
                 .entity(sim_entity)
                 .insert(Collider::voxels(Vec3::splat(VOXEL_SIZE), &voxel_positions));
+        } else {
+            commands.entity(sim_entity).remove::<Collider>();
         }
     }
 }
@@ -429,6 +455,16 @@ impl VoxelSim {
         (self.bounds.x * self.bounds.y * self.bounds.z) as usize
     }
 
+    /// Fraction of voxels that are air (0.0 = fully solid, 1.0 = fully empty).
+    pub fn air_ratio(&self) -> f32 {
+        let total = self.voxels.len();
+        if total == 0 {
+            return 0.0;
+        }
+        let air = self.voxels.iter().filter(|v| **v == Voxel::Air).count();
+        air as f32 / total as f32
+    }
+
     fn mark_modified(&mut self, index: usize) {
         self.modified.insert(index);
     }
@@ -454,6 +490,10 @@ impl VoxelSim {
             return None;
         }
         Some(self.voxels[self.linearize(pos)])
+    }
+
+    pub fn clear_modified(&mut self) {
+        self.modified.clear();
     }
 
     pub fn set(&mut self, pos: IVec3, voxel: Voxel) {
@@ -514,6 +554,7 @@ impl VoxelSim {
 
         for i in dirty.dirty.ones() {
             let voxel = self.voxels[i];
+            // fall
             match voxel {
                 Voxel::Dirt | Voxel::Sand => {
                     let below = i.wrapping_sub(y_stride);
@@ -524,6 +565,42 @@ impl VoxelSim {
                         self.mark_modified(i);
                         self.mark_modified(below);
                         self.needs_remesh = true;
+                        continue;
+                    }
+                }
+                _ => {}
+            }
+
+            // down diagonals: check -X, +X, -Z, +Z at y-2
+            match voxel {
+                Voxel::Dirt | Voxel::Sand => {
+                    let pos = self.delinearize(i);
+                    let target_y = pos.y - 2;
+                    if target_y >= 0 {
+                        let offsets = [
+                            IVec3::new(-1, -2, 0),
+                            IVec3::new(1, -2, 0),
+                            IVec3::new(0, -2, -1),
+                            IVec3::new(0, -2, 1),
+                        ];
+                        for offset in offsets {
+                            let target = pos + offset;
+                            if target.x >= 0
+                                && target.x < self.bounds.x
+                                && target.z >= 0
+                                && target.z < self.bounds.z
+                            {
+                                let target_idx = self.linearize(target);
+                                if target_idx < volume && self.voxels[target_idx] == Voxel::Air {
+                                    self.voxels[i] = Voxel::Air;
+                                    self.voxels[target_idx] = voxel;
+                                    self.mark_modified(i);
+                                    self.mark_modified(target_idx);
+                                    self.needs_remesh = true;
+                                    break;
+                                }
+                            }
+                        }
                     }
                 }
                 _ => {}

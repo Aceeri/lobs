@@ -4,7 +4,7 @@ use avian3d::prelude::*;
 use bevy::{ecs::entity_disabling::Disabled, prelude::*};
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_plugins((PhysicsPlugins::default()))
+    app.add_plugins(PhysicsPlugins::default())
         .insert_gizmo_config(PhysicsGizmos::default(), GizmoConfig::default())
         .add_observer(enable_interpolation);
 }
@@ -18,6 +18,8 @@ pub(crate) enum CollisionLayer {
     Sensor,
     Level,
     VoxelAabb,
+    Ragdoll,
+    Projectile,
 }
 
 fn enable_interpolation(

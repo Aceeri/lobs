@@ -9,6 +9,7 @@ mod lamp_plain;
 mod lamp_shaded;
 mod lamp_sitting;
 mod lamp_wall_electric;
+pub(crate) mod light;
 
 pub(super) fn plugin(app: &mut App) {
     app.add_plugins((
@@ -19,5 +20,6 @@ pub(super) fn plugin(app: &mut App) {
         lamp_wall_electric::plugin,
         lamp_shaded::plugin,
         lamp_plain::plugin,
+        light::plugin,
     ));
 }

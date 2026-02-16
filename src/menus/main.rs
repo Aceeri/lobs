@@ -4,35 +4,66 @@ use bevy::{
     window::{CursorGrabMode, CursorOptions},
 };
 
+use bevy::ui::Val::*;
+
 use crate::{
     menus::Menu,
     screens::Screen,
-    theme::{palette::SCREEN_BACKGROUND, widget},
+    theme::{GameFont, TitleFont, palette::SCREEN_BACKGROUND, widget},
 };
 
 pub(super) fn plugin(app: &mut App) {
     app.add_systems(OnEnter(Menu::Main), spawn_main_menu);
 }
 
-fn spawn_main_menu(mut commands: Commands, mut cursor_options: Single<&mut CursorOptions>) {
+fn spawn_main_menu(
+    mut commands: Commands,
+    mut cursor_options: Single<&mut CursorOptions>,
+    font: Res<GameFont>,
+    title_font: Res<TitleFont>,
+) {
     cursor_options.grab_mode = CursorGrabMode::None;
+    let f = &font.0;
+    let tf = &title_font.0;
     commands.spawn((
-        widget::ui_root("Main Menu"),
+        Name::new("Main Menu"),
+        Node {
+            position_type: PositionType::Absolute,
+            width: Percent(100.0),
+            height: Percent(100.0),
+            flex_direction: FlexDirection::Column,
+            align_items: AlignItems::FlexStart,
+            justify_content: JustifyContent::FlexStart,
+            padding: UiRect::axes(Px(60.0), Px(80.0)),
+            row_gap: Px(30.0),
+            ..default()
+        },
+        Pickable::IGNORE,
         BackgroundColor(SCREEN_BACKGROUND),
         GlobalZIndex(2),
         DespawnOnExit(Menu::Main),
         #[cfg(not(target_family = "wasm"))]
         children![
-            widget::button("Play", enter_loading_screen),
-            widget::button("Settings", open_settings_menu),
-            widget::button("Credits", open_credits_menu),
-            widget::button("Exit", exit_app),
+            (
+                Text::new("The Lob"),
+                widget::text_font(tf, 120.0),
+                TextColor(Color::WHITE),
+            ),
+            widget::button("play", enter_loading_screen, f),
+            widget::button("settings", open_settings_menu, f),
+            widget::button("credits", open_credits_menu, f),
+            widget::button("exit", exit_app, f),
         ],
         #[cfg(target_family = "wasm")]
         children![
-            widget::button("Play", enter_loading_screen),
-            widget::button("Settings", open_settings_menu),
-            widget::button("Credits", open_credits_menu),
+            (
+                Text::new("The Lob"),
+                widget::text_font(tf, 120.0),
+                TextColor(Color::WHITE),
+            ),
+            widget::button("play", enter_loading_screen, f),
+            widget::button("settings", open_settings_menu, f),
+            widget::button("credits", open_credits_menu, f),
         ],
     ));
 }

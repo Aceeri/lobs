@@ -43,13 +43,14 @@ pub(super) fn plugin(app: &mut App) {
     );
 }
 
-fn spawn_settings_menu(mut commands: Commands, paused: Res<State<Pause>>) {
+fn spawn_settings_menu(mut commands: Commands, paused: Res<State<Pause>>, font: Res<GameFont>) {
+    let f = &font.0;
     let mut entity_commands = commands.spawn((
         widget::ui_root("Settings Screen"),
         DespawnOnExit(Menu::Settings),
         GlobalZIndex(2),
         children![
-            widget::header("Settings"),
+            widget::header("Settings", f),
             (
                 Name::new("Settings Grid"),
                 Node {
@@ -62,16 +63,16 @@ fn spawn_settings_menu(mut commands: Commands, paused: Res<State<Pause>>) {
                 children![
                     // Audio
                     (
-                        widget::label("Audio Volume"),
+                        widget::label("Audio Volume", f),
                         Node {
                             justify_self: JustifySelf::End,
                             ..default()
                         }
                     ),
-                    widget::plus_minus_bar(GlobalVolumeLabel, lower_volume, raise_volume),
+                    widget::plus_minus_bar(GlobalVolumeLabel, lower_volume, raise_volume, f),
                     // Camera Sensitivity
                     (
-                        widget::label("Camera Sensitivity"),
+                        widget::label("Camera Sensitivity", f),
                         Node {
                             justify_self: JustifySelf::End,
                             ..default()
@@ -80,29 +81,30 @@ fn spawn_settings_menu(mut commands: Commands, paused: Res<State<Pause>>) {
                     widget::plus_minus_bar(
                         CameraSensitivityLabel,
                         lower_camera_sensitivity,
-                        raise_camera_sensitivity
+                        raise_camera_sensitivity,
+                        f
                     ),
                     // Camera FOV
                     (
-                        widget::label("Camera FOV"),
+                        widget::label("Camera FOV", f),
                         Node {
                             justify_self: JustifySelf::End,
                             ..default()
                         }
                     ),
-                    widget::plus_minus_bar(CameraFovLabel, lower_camera_fov, raise_camera_fov),
+                    widget::plus_minus_bar(CameraFovLabel, lower_camera_fov, raise_camera_fov, f),
                     // VSync
                     (
-                        widget::label("VSync"),
+                        widget::label("VSync", f),
                         Node {
                             justify_self: JustifySelf::End,
                             ..default()
                         }
                     ),
-                    widget::plus_minus_bar(VsyncLabel, disable_vsync, enable_vsync),
+                    widget::plus_minus_bar(VsyncLabel, disable_vsync, enable_vsync, f),
                     // FPS Limiter (Enable/Disable)
                     (
-                        widget::label("FPS Limiter"),
+                        widget::label("FPS Limiter", f),
                         Node {
                             justify_self: JustifySelf::End,
                             ..default()
@@ -111,11 +113,12 @@ fn spawn_settings_menu(mut commands: Commands, paused: Res<State<Pause>>) {
                     widget::plus_minus_bar(
                         FpsLimiterEnabledLabel,
                         disable_fps_limiter,
-                        enable_fps_limiter
+                        enable_fps_limiter,
+                        f
                     ),
                     // FPS Target
                     (
-                        widget::label("FPS Target"),
+                        widget::label("FPS Target", f),
                         Node {
                             justify_self: JustifySelf::End,
                             ..default()
@@ -124,11 +127,12 @@ fn spawn_settings_menu(mut commands: Commands, paused: Res<State<Pause>>) {
                     widget::plus_minus_bar(
                         FpsLimiterTargetLabel,
                         lower_fps_target,
-                        raise_fps_target
+                        raise_fps_target,
+                        f
                     ),
                 ],
             ),
-            widget::button("Back", go_back_on_click),
+            widget::button("Back", go_back_on_click, f),
         ],
     ));
     if paused.get() == &Pause(false) {

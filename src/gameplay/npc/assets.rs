@@ -37,7 +37,8 @@ impl FromWorld for NpcAssets {
             _model: assets.load_with_settings(
                 Npc::scene_path(),
                 |settings: &mut GltfLoaderSettings| {
-                    settings.load_meshes = RenderAssetUsages::RENDER_WORLD;
+                    settings.load_meshes =
+                        RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD;
                     settings.load_materials = RenderAssetUsages::RENDER_WORLD;
                 },
             ),

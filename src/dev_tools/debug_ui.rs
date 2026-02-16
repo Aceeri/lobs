@@ -6,7 +6,12 @@ use super::input::{ForceFreeCursor, ToggleDebugUi};
 use crate::RenderLayer;
 use crate::gameplay::crosshair::CrosshairState;
 use crate::gameplay::level::LevelAssets;
-use crate::{PostPhysicsAppSystems, theme::widget};
+use crate::gameplay::player::input::BlocksInput;
+use crate::{
+    PostPhysicsAppSystems,
+    theme::{GameFont, widget},
+};
+use avian_pickup::prelude::*;
 use avian3d::prelude::*;
 use bevy::camera::visibility::RenderLayers;
 use bevy::dev_tools::fps_overlay::FrameTimeGraphConfig;
@@ -41,7 +46,7 @@ pub(super) fn plugin(app: &mut App) {
     ));
     app.add_systems(
         bevy_inspector_egui::bevy_egui::EguiPrimaryContextPass,
-        world_inspector_ui.run_if(is_inspector_active),
+        (world_inspector_ui, pickup_debug_ui).run_if(is_inspector_active),
     );
 
     app.add_plugins((
@@ -130,7 +135,8 @@ fn add_navmesh_gizmo(
     gizmo_config.detail_navmesh.render_layers = RenderLayers::from(RenderLayer::GIZMO3);
 }
 
-fn setup_debug_ui_text(mut commands: Commands) {
+fn setup_debug_ui_text(mut commands: Commands, font: Res<GameFont>) {
+    let f = &font.0;
     commands.spawn((
         Name::new("Debug UI"),
         Node {
@@ -141,7 +147,7 @@ fn setup_debug_ui_text(mut commands: Commands) {
             ..default()
         },
         Pickable::IGNORE,
-        children![(widget::label("Debug UI"), DebugUiText)],
+        children![(widget::label("Debug UI", f), DebugUiText)],
     ));
 }
 
@@ -202,16 +208,19 @@ fn toggle_egui_inspector(
     _on: On<Start<ForceFreeCursor>>,
     mut crosshair_state: Single<&mut CrosshairState>,
     mut inspector_active: ResMut<InspectorActive>,
+    mut blocks_input: ResMut<BlocksInput>,
 ) {
     inspector_active.0 = !inspector_active.0;
     if inspector_active.0 {
         crosshair_state
             .wants_free_cursor
             .insert(toggle_egui_inspector.type_id());
+        blocks_input.insert(toggle_egui_inspector.type_id());
     } else {
         crosshair_state
             .wants_free_cursor
             .remove(&toggle_egui_inspector.type_id());
+        blocks_input.remove(&toggle_egui_inspector.type_id());
     }
 }
 
@@ -238,6 +247,67 @@ fn world_inspector_ui(world: &mut World) {
                 bevy_inspector::ui_for_world(world, ui);
                 ui.allocate_space(ui.available_size());
             });
+        });
+}
+
+fn pickup_debug_ui(world: &mut World) {
+    let egui_context = world
+        .query_filtered::<&mut EguiContext, With<PrimaryEguiContext>>()
+        .single(world);
+    let Ok(egui_context) = egui_context else {
+        return;
+    };
+    let mut egui_context = egui_context.clone();
+
+    // Gather pickup actor state
+    let mut actor_info: Vec<(Entity, AvianPickupActorState)> = Vec::new();
+    let mut query = world.query::<(Entity, &AvianPickupActorState)>();
+    for (entity, state) in query.iter(world) {
+        actor_info.push((entity, *state));
+    }
+
+    egui::Window::new("Pickup Debug")
+        .default_pos([10.0, 10.0])
+        .default_width(280.0)
+        .show(egui_context.get_mut(), |ui| {
+            if actor_info.is_empty() {
+                ui.label("No pickup actors found");
+                return;
+            }
+
+            for (actor_entity, state) in &actor_info {
+                ui.heading(format!("Actor {:?}", actor_entity));
+                ui.separator();
+
+                let (state_label, target_entity) = match state {
+                    AvianPickupActorState::Idle => ("Idle", None),
+                    AvianPickupActorState::Pulling(e) => ("Pulling", Some(*e)),
+                    AvianPickupActorState::Holding(e) => ("Holding", Some(*e)),
+                };
+                ui.label(format!("State: {}", state_label));
+
+                if let Some(target) = target_entity {
+                    ui.label(format!("Target: {:?}", target));
+
+                    if let Some(name) = world.get::<Name>(target) {
+                        ui.label(format!("Name: {}", name.as_str()));
+                    }
+                    if let Some(mass) = world.get::<Mass>(target) {
+                        ui.label(format!("Mass: {:.2} kg", mass.0));
+                    }
+                    if let Some(transform) = world.get::<GlobalTransform>(target) {
+                        let pos = transform.translation();
+                        ui.label(format!("Pos: ({:.1}, {:.1}, {:.1})", pos.x, pos.y, pos.z));
+                    }
+                    if let Some(lin_vel) = world.get::<LinearVelocity>(target) {
+                        let v = lin_vel.0;
+                        ui.label(format!("LinVel: ({:.1}, {:.1}, {:.1})", v.x, v.y, v.z));
+                    }
+                    if let Some(layers) = world.get::<CollisionLayers>(target) {
+                        ui.label(format!("Layers: {:?}", layers));
+                    }
+                }
+            }
         });
 }
 

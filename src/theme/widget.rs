@@ -29,37 +29,49 @@ pub(crate) fn ui_root(name: impl Into<Cow<'static, str>>) -> impl Bundle {
     )
 }
 
+pub(crate) fn text_font(font: &Handle<Font>, font_size: f32) -> TextFont {
+    TextFont {
+        font: font.clone(),
+        font_size,
+        ..default()
+    }
+}
+
 /// A simple header label. Bigger than [`label`].
-pub(crate) fn header(text: impl Into<String>) -> impl Bundle {
+pub(crate) fn header(text: impl Into<String>, font: &Handle<Font>) -> impl Bundle {
     (
         Name::new("Header"),
         Text(text.into()),
-        TextFont::from_font_size(40.0),
+        text_font(font, 40.0),
         TextColor(HEADER_TEXT),
     )
 }
 
 /// A simple text label.
-pub(crate) fn label(text: impl Into<String>) -> impl Bundle {
-    label_base(text, 24.0)
+pub(crate) fn label(text: impl Into<String>, font: &Handle<Font>) -> impl Bundle {
+    label_base(text, 24.0, font)
 }
 
-pub(crate) fn label_small(text: impl Into<String>) -> impl Bundle {
-    label_base(text, 12.0)
+pub(crate) fn label_small(text: impl Into<String>, font: &Handle<Font>) -> impl Bundle {
+    label_base(text, 12.0, font)
 }
 
 /// A simple text label.
-fn label_base(text: impl Into<String>, font_size: f32) -> impl Bundle {
+fn label_base(text: impl Into<String>, font_size: f32, font: &Handle<Font>) -> impl Bundle {
     (
         Name::new("Label"),
         Text(text.into()),
-        TextFont::from_font_size(font_size),
+        text_font(font, font_size),
         TextColor(LABEL_TEXT),
     )
 }
 
-/// A large rounded button with text and an action defined as an [`Observer`].
-pub(crate) fn button<E, B, M, I>(text: impl Into<String>, action: I) -> impl Bundle
+/// A text button with an action defined as an [`Observer`].
+pub(crate) fn button<E, B, M, I>(
+    text: impl Into<String>,
+    action: I,
+    font: &Handle<Font>,
+) -> impl Bundle
 where
     E: EntityEvent,
     B: Bundle,
@@ -69,18 +81,20 @@ where
         text,
         action,
         Node {
-            width: px(380),
-            height: px(80),
             align_items: AlignItems::Center,
-            justify_content: JustifyContent::Center,
-            border_radius: BorderRadius::MAX,
+            justify_content: JustifyContent::FlexStart,
             ..default()
         },
+        font,
     )
 }
 
 /// A small square button with text and an action defined as an [`Observer`].
-pub(crate) fn button_small<E, B, M, I>(text: impl Into<String>, action: I) -> impl Bundle
+pub(crate) fn button_small<E, B, M, I>(
+    text: impl Into<String>,
+    action: I,
+    font: &Handle<Font>,
+) -> impl Bundle
 where
     E: EntityEvent,
     B: Bundle,
@@ -96,6 +110,7 @@ where
             justify_content: JustifyContent::Center,
             ..default()
         },
+        font,
     )
 }
 
@@ -104,6 +119,7 @@ fn button_base<E, B, M, I>(
     text: impl Into<String>,
     action: I,
     button_bundle: impl Bundle,
+    font: &Handle<Font>,
 ) -> impl Bundle
 where
     E: EntityEvent,
@@ -112,6 +128,7 @@ where
 {
     let text = text.into();
     let action = IntoObserverSystem::into_system(action);
+    let font = text_font(font, 40.0);
     (
         Name::new("Button"),
         Node::default(),
@@ -120,18 +137,17 @@ where
                 .spawn((
                     Name::new("Button Inner"),
                     Button,
-                    BackgroundColor(BUTTON_BACKGROUND),
+                    BackgroundColor(Color::NONE),
                     InteractionPalette {
-                        none: BUTTON_BACKGROUND,
+                        none: Color::NONE,
                         hovered: BUTTON_HOVERED_BACKGROUND,
                         pressed: BUTTON_PRESSED_BACKGROUND,
                     },
                     children![(
                         Name::new("Button Text"),
                         Text(text),
-                        TextFont::from_font_size(40.0),
+                        font,
                         TextColor(BUTTON_TEXT),
-                        // Don't bubble picking events from the text up to the button.
                         Pickable::IGNORE,
                     )],
                 ))
@@ -145,6 +161,7 @@ pub(crate) fn plus_minus_bar<E, B, M, I1, I2>(
     label_marker: impl Component,
     lower: I1,
     raise: I2,
+    font: &Handle<Font>,
 ) -> impl Bundle
 where
     E: EntityEvent,
@@ -158,15 +175,15 @@ where
             ..default()
         },
         children![
-            button_small("-", lower),
-            button_small("+", raise),
+            button_small("-", lower, font),
+            button_small("+", raise, font),
             (
                 Node {
                     padding: UiRect::horizontal(Px(10.0)),
                     justify_content: JustifyContent::Center,
                     ..default()
                 },
-                children![(label(""), label_marker)],
+                children![(label("", font), label_marker)],
             ),
         ],
     )

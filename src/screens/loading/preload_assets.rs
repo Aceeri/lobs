@@ -30,16 +30,18 @@ fn spawn_or_skip_asset_loading_screen(
     mut commands: Commands,
     resource_handles: Res<ResourceHandles>,
     mut next_screen: ResMut<NextState<LoadingScreen>>,
+    font: Res<GameFont>,
 ) {
     if resource_handles.is_all_done() {
         next_screen.set(LoadingScreen::Shaders);
         return;
     }
+    let f = &font.0;
     commands.spawn((
         widget::ui_root("Loading Screen"),
         BackgroundColor(SCREEN_BACKGROUND),
         DespawnOnExit(LoadingScreen::Assets),
-        children![(widget::label("Loading Assets"), LoadingAssetsLabel)],
+        children![(widget::label("Loading Assets", f), LoadingAssetsLabel)],
     ));
 }
 

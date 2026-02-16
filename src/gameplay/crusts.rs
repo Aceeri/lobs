@@ -9,7 +9,7 @@ use bevy::{
     ui::widget::ViewportNode,
 };
 
-use crate::{RenderLayer, asset_tracking::LoadResource, screens::Screen};
+use crate::{RenderLayer, asset_tracking::LoadResource, screens::Screen, theme::GameFont};
 
 // hacky shit, should probably just have separate render layers or a closer `far` or something
 const PREVIEW_SPACING: f32 = 100.0;
@@ -199,18 +199,35 @@ pub fn plugin(app: &mut App) {
             spin_previews,
             position_preview_cameras,
             update_crusts_text.run_if(resource_changed::<Crusts>),
+            animate_crusts_popups,
         ),
     );
     app.add_observer(configure_preview_render_layers);
+    app.add_observer(spawn_crusts_popup);
 }
 
 // TODO: make this a per player thing when we add coop
-#[derive(Resource, Default)]
+#[derive(Resource)]
 pub(crate) struct Crusts(pub(crate) u32);
+
+impl Default for Crusts {
+    fn default() -> Self {
+        Self(100)
+    }
+}
 
 impl Crusts {
     pub fn add(&mut self, amount: u32) {
         self.0 += amount;
+    }
+
+    pub fn try_spend(&mut self, amount: u32) -> bool {
+        if self.0 >= amount {
+            self.0 -= amount;
+            true
+        } else {
+            false
+        }
     }
 }
 
@@ -231,7 +248,13 @@ impl FromWorld for CrustsAssets {
 }
 
 #[derive(Component)]
+pub(crate) struct HudTopLeft;
+
+#[derive(Component)]
 struct CrustsCounterText;
+
+#[derive(Component)]
+struct CrustsRow;
 
 fn spawn_crusts_hud(
     mut commands: Commands,
@@ -239,6 +262,7 @@ fn spawn_crusts_hud(
     mut materials: ResMut<Assets<StandardMaterial>>,
     crusts_assets: Res<CrustsAssets>,
     crusts: Res<Crusts>,
+    font: Res<GameFont>,
 ) {
     let preview = spawn_model_preview(
         &mut commands,
@@ -274,12 +298,15 @@ fn spawn_crusts_hud(
     commands
         .spawn((
             Name::new("Crusts HUD"),
+            HudTopLeft,
             Node {
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
                 justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::FlexStart,
                 padding: UiRect::all(Val::Px(16.0)),
+                row_gap: Val::Px(12.0),
                 ..default()
             },
             Pickable::IGNORE,
@@ -287,11 +314,14 @@ fn spawn_crusts_hud(
         ))
         .with_children(|parent| {
             parent
-                .spawn(Node {
-                    align_items: AlignItems::Center,
-                    column_gap: Val::Px(8.0),
-                    ..default()
-                })
+                .spawn((
+                    CrustsRow,
+                    Node {
+                        align_items: AlignItems::Center,
+                        column_gap: Val::Px(8.0),
+                        ..default()
+                    },
+                ))
                 .with_children(|row| {
                     row.spawn((
                         ViewportNode::new(preview.camera),
@@ -305,6 +335,7 @@ fn spawn_crusts_hud(
                         CrustsCounterText,
                         Text::new(format!("{}", crusts.0)),
                         TextFont {
+                            font: font.0.clone(),
                             font_size: 24.0,
                             ..default()
                         },
@@ -317,5 +348,69 @@ fn spawn_crusts_hud(
 fn update_crusts_text(crusts: Res<Crusts>, mut query: Query<&mut Text, With<CrustsCounterText>>) {
     for mut text in &mut query {
         **text = format!("{}", crusts.0);
+    }
+}
+
+// --- +N popup ---
+
+#[derive(Event)]
+pub(crate) struct CrustsRewarded(pub u32);
+
+#[derive(Component)]
+struct CrustsPopup {
+    timer: Timer,
+}
+
+const POPUP_DURATION: f32 = 1.2;
+
+fn spawn_crusts_popup(
+    event: On<CrustsRewarded>,
+    mut commands: Commands,
+    row: Query<Entity, With<CrustsRow>>,
+    font: Res<GameFont>,
+) {
+    let amount = event.0;
+    let Ok(row_entity) = row.single() else {
+        return;
+    };
+
+    for _ in 0..amount {
+        let popup = commands
+            .spawn((
+                CrustsPopup {
+                    timer: Timer::from_seconds(POPUP_DURATION, TimerMode::Once),
+                },
+                Text::new("+1"),
+                TextFont {
+                    font: font.0.clone(),
+                    font_size: 20.0,
+                    ..default()
+                },
+                TextColor(Color::srgba(0.4, 1.0, 0.4, 1.0)),
+            ))
+            .id();
+
+        commands.entity(row_entity).add_child(popup);
+    }
+}
+
+fn animate_crusts_popups(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut popups: Query<(Entity, &mut CrustsPopup, &mut Node, &mut TextColor)>,
+) {
+    for (entity, mut popup, mut node, mut color) in &mut popups {
+        popup.timer.tick(time.delta());
+        let t = popup.timer.fraction();
+
+        // Float upward via negative bottom margin
+        node.margin.top = Val::Px(-20.0 * t);
+
+        // Fade out
+        color.0 = color.0.with_alpha(1.0 - t);
+
+        if popup.timer.just_finished() {
+            commands.entity(entity).despawn();
+        }
     }
 }

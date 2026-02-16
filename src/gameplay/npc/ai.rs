@@ -84,7 +84,7 @@ struct NpcInputContext;
 
 #[derive(Component, Debug, Reflect)]
 #[reflect(Component)]
-struct WantsToFollowPlayer;
+pub(super) struct WantsToFollowPlayer;
 
 fn update_agent_target(
     mut agents: Query<&mut AgentTarget3d, With<WantsToFollowPlayer>>,

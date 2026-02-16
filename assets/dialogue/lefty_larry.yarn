@@ -3,10 +3,29 @@ title: Lefty_Larry
 Lefty Larry: Look at who's slackin'
 -> What was I supposed to do again?
   Lefty Larry: Seriously? Goldfish here huh? We gotta dig up the dirt to make more room. We'll have a lot of bodies rolling in soon, big moves coming from the top.
-  -> Alright, fine.
+  -> Where should I start?
+    Lefty Larry: See those spots underneath the expressway? That's where we'll start. We only have 6 spots right now, but we'll find more outside.
+    -> Alright.
+    <<jump Quit>>
+  -> Oh right.
   <<jump Quit>>
 -> I'll get back to it.
- <<jump Quit>>
+<<jump Quit>>
+===
+
+title: 3_Dug
+---
+Lefty Larry: Alright, seems you've got 3 of the spots dug up. I think we have some bodies coming in... Throw them in the holes then fill it in with the bucket.
+===
+
+title: 3_Slotted
+---
+Lefty Larry: Good, pour some dirt back in with that bucket of yours eh?
+===
+
+title: 3_Done
+---
+Lefty Larry: Fantastic, now we just need to wait for some more bodies to come in... in the meantime the boss gave me this hit. The guy should be just down that hallway to the left in the store. Give me a hand will ya?
 ===
 
 title: Quit

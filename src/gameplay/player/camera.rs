@@ -62,7 +62,7 @@ pub(crate) struct PlayerCamera;
 #[derive(Component, Debug, Reflect)]
 #[reflect(Component)]
 #[require(Transform, Visibility)]
-struct WorldModelCamera;
+pub(crate) struct WorldModelCamera;
 
 fn spawn_view_model(
     add: On<Add, Player>,
@@ -96,14 +96,14 @@ fn spawn_view_model(
                 prop_filter: SpatialQueryFilter::from_mask(CollisionLayer::Prop),
                 obstacle_filter: SpatialQueryFilter::from_mask(CollisionLayer::Level),
                 actor_filter: SpatialQueryFilter::from_mask(CollisionLayer::Character),
-                interaction_distance: 2.0,
+                interaction_distance: 3.5,
                 pull: AvianPickupActorPullConfig {
                     impulse: 20.0,
                     // We are not limiting ourselves to the mass of props.
                     max_prop_mass: 10_000.0,
                 },
                 hold: AvianPickupActorHoldConfig {
-                    distance_to_allow_holding: 2.0,
+                    distance_to_allow_holding: 3.5,
                     linear_velocity_easing: 0.7,
                     ..default()
                 },

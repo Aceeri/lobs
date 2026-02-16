@@ -34,16 +34,21 @@ fn spawn_or_skip_shader_compilation_loading_screen(
     mut commands: Commands,
     loaded_pipeline_count: Res<LoadedPipelineCount>,
     mut next_screen: ResMut<NextState<LoadingScreen>>,
+    font: Res<GameFont>,
 ) {
     if loaded_pipeline_count.is_done() {
         next_screen.set(LoadingScreen::Level);
         return;
     }
+    let f = &font.0;
     commands.spawn((
         widget::ui_root("Loading Screen"),
         BackgroundColor(SCREEN_BACKGROUND),
         DespawnOnExit(LoadingScreen::Shaders),
-        children![(widget::label("Compiling shaders..."), LoadingShadersLabel)],
+        children![(
+            widget::label("Compiling shaders...", f),
+            LoadingShadersLabel
+        )],
     ));
 }
 

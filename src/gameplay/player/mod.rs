@@ -20,6 +20,22 @@ use crate::{
     third_party::{avian3d::CollisionLayer, bevy_trenchbroom::GetTrenchbroomModelPath as _},
 };
 
+/// Discrete player hit points. Starts at 3.
+#[derive(Component)]
+pub(crate) struct PlayerHealth {
+    pub current: u32,
+    pub max: u32,
+}
+
+/// While present on the player entity, the player cannot take damage.
+/// Automatically removed when the timer expires.
+#[derive(Component)]
+pub(crate) struct Invincible(pub Timer);
+
+/// Stored on the player entity so we can teleport back on fall-out.
+#[derive(Component)]
+struct SpawnPoint(Vec3);
+
 mod animation;
 pub(crate) mod assets;
 pub(crate) mod camera;
@@ -43,7 +59,10 @@ pub(super) fn plugin(app: &mut App) {
     app.add_observer(setup_player);
     app.load_asset::<Gltf>(Player::model_path());
     app.add_systems(PreUpdate, assert_only_one_player);
-    app.add_systems(Update, push_props.run_if(in_state(Screen::Gameplay)));
+    app.add_systems(
+        Update,
+        (push_props, tick_invincibility, respawn_fallen_player).run_if(in_state(Screen::Gameplay)),
+    );
 }
 
 #[point_class(
@@ -71,7 +90,13 @@ fn setup_player(
     add: On<Add, Player>,
     mut commands: Commands,
     archipelago: Single<Entity, With<Archipelago3d>>,
+    transforms: Query<&Transform>,
 ) {
+    let spawn_pos = transforms
+        .get(add.entity)
+        .map(|t| t.translation)
+        .unwrap_or(Vec3::ZERO);
+
     let mut self_hashset = EntityHashSet::new();
     self_hashset.insert(add.entity);
     let filter = SpatialQueryFilter {
@@ -84,17 +109,19 @@ fn setup_player(
         .insert((
             RigidBody::Kinematic,
             PlayerInputContext,
-            // The player character needs to be configured as a dynamic rigid body of the physics
-            // engine.
             Collider::cylinder(PLAYER_RADIUS, PLAYER_HEIGHT),
-            // This is Tnua's interface component.
             CharacterController {
+                jump_height: 3.5,
                 filter: filter,
+                acceleration_hz: 10.0,
+                friction_hz: 30.0,
                 ..default()
             },
             ColliderDensity(1_000.0),
             CollisionLayers::new(CollisionLayer::Character, CollisionLayer::Level),
             AnimationState::<PlayerAnimationState>::default(),
+            PlayerHealth { current: 3, max: 3 },
+            SpawnPoint(spawn_pos),
             children![(
                 Name::new("Player Landmass Character"),
                 Transform::from_xyz(0.0, -PLAYER_FLOAT_HEIGHT, 0.0),
@@ -150,4 +177,45 @@ fn push_props(
         velocity.x = direction.x * strength;
         velocity.z = direction.z * strength;
     }
+}
+
+fn tick_invincibility(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut query: Query<(Entity, &mut Invincible), With<Player>>,
+) {
+    for (entity, mut inv) in &mut query {
+        inv.0.tick(time.delta());
+        if inv.0.just_finished() {
+            commands.entity(entity).remove::<Invincible>();
+        }
+    }
+}
+
+const DESPAWN_Y: f32 = -1000.0;
+
+fn respawn_fallen_player(mut player: Query<(&mut Transform, &SpawnPoint), With<Player>>) {
+    for (mut transform, spawn) in &mut player {
+        if transform.translation.y < DESPAWN_Y {
+            transform.translation = spawn.0;
+        }
+    }
+}
+
+/// Try to deal 1 HP of damage to the player. Returns `true` if damage was applied.
+/// Grants 1 second of invincibility on hit.
+pub(crate) fn hurt_player(
+    commands: &mut Commands,
+    entity: Entity,
+    health: &mut PlayerHealth,
+    invincible: Option<&Invincible>,
+) -> bool {
+    if invincible.is_some() {
+        return false;
+    }
+    health.current = health.current.saturating_sub(1);
+    commands
+        .entity(entity)
+        .insert(Invincible(Timer::from_seconds(1.0, TimerMode::Once)));
+    true
 }

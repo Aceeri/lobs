@@ -22,12 +22,13 @@ pub(super) fn plugin(app: &mut App) {
     );
 }
 
-fn spawn_level_loading_screen(mut commands: Commands) {
+fn spawn_level_loading_screen(mut commands: Commands, font: Res<GameFont>) {
+    let f = &font.0;
     commands.spawn((
         widget::ui_root("Loading Screen"),
         BackgroundColor(SCREEN_BACKGROUND),
         DespawnOnExit(LoadingScreen::Level),
-        children![widget::label("Spawning Level...")],
+        children![widget::label("Spawning Level...", f)],
     ));
 }
 
