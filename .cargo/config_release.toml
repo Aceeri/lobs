@@ -24,4 +24,4 @@ rustflags = [
 ]
 [profile.web-release]
 codegen_units = 1
-lto = "Fat"
+lto = "fat"
