@@ -236,6 +236,14 @@
 }
 // entity 14
 {
+"classname" "npc"
+"origin" "-744 -576 40"
+"tag" "tutorial,storekeeper"
+"model" "lobster"
+"yarn_node" "Tutorial_Storekeeper"
+}
+// entity 15
+{
 "classname" "func_group"
 "_tb_type" "_tb_layer"
 "_tb_name" "Tutorial"
@@ -757,7 +765,7 @@
 ( -384 -136 -128 ) ( -384 -136 16 ) ( -384 -48 -128 ) darkmod/stone/brick/red_worn_dirty [ 0 0.03703703703703703 -3.2311695399231874e-18 -397.6297 ] [ 0 3.7737340156694744e-18 -0.41176470588235314 58.941162 ] 90 0.01 0.1
 }
 }
-// entity 15
+// entity 16
 {
 "classname" "npc"
 "origin" "232 8 40"
@@ -765,13 +773,13 @@
 "yarn_node" "Lefty_Larry"
 "_tb_layer" "1"
 }
-// entity 16
+// entity 17
 {
 "classname" "player"
 "origin" "72 8 40"
 "_tb_layer" "1"
 }
-// entity 17
+// entity 18
 {
 "classname" "voxel_volume"
 "angles" "0 0 0"
@@ -787,7 +795,7 @@
 ( 368 -336 16 ) ( 368 -336 23 ) ( 368 -335.1666666666667 16 ) __TB_empty [ 0 1.2000000000002395 0 19.200012 ] [ 0 0 -0.14285714285714265 10.285712 ] 0 1 1
 }
 }
-// entity 18
+// entity 19
 {
 "classname" "light_directional"
 "origin" "0 0 10"
@@ -797,7 +805,7 @@
 "illuminance" "500.000000"
 "_tb_layer" "1"
 }
-// entity 19
+// entity 20
 {
 "classname" "voxel_volume"
 "angles" "0 0 0"
@@ -813,7 +821,7 @@
 ( 368 -448 16 ) ( 368 -448 23 ) ( 368 -447.1666666666667 16 ) __TB_empty [ 0 1.2000000000002395 0 25.599976 ] [ 0 0 -0.14285714285714265 10.285712 ] 180 1 1
 }
 }
-// entity 20
+// entity 21
 {
 "classname" "voxel_volume"
 "angles" "0 0 0"
@@ -829,7 +837,7 @@
 ( 368 -560 16 ) ( 368 -560 23 ) ( 368 -559.1666666666667 16 ) __TB_empty [ 0 1.2000000000002395 0 0 ] [ 0 0 -0.14285714285714265 10.285712 ] 90 1 1
 }
 }
-// entity 21
+// entity 22
 {
 "classname" "voxel_volume"
 "angles" "0 0 0"
@@ -845,7 +853,7 @@
 ( -208 -336 16 ) ( -208 -336 23 ) ( -208 -335.1666666666667 16 ) __TB_empty [ 0 1.2000000000002395 0 -12.799988 ] [ 0 0 -0.14285714285714265 10.285712 ] 0 1 1
 }
 }
-// entity 22
+// entity 23
 {
 "classname" "voxel_volume"
 "angles" "0 0 0"
@@ -861,7 +869,7 @@
 ( -208 -448 16 ) ( -208 -448 23 ) ( -208 -447.1666666666667 16 ) __TB_empty [ 0 1.2000000000002395 0 25.599976 ] [ 0 0 -0.14285714285714265 10.285712 ] 180 1 1
 }
 }
-// entity 23
+// entity 24
 {
 "classname" "voxel_volume"
 "angles" "0 0 0"
@@ -877,7 +885,7 @@
 ( -208 -560 16 ) ( -208 -560 23 ) ( -208 -559.1666666666667 16 ) __TB_empty [ 0 1.2000000000002395 0 0 ] [ 0 0 -0.14285714285714265 10.285712 ] 90 1 1
 }
 }
-// entity 24
+// entity 25
 {
 "classname" "grave"
 "angles" "0 0 0"
@@ -893,7 +901,7 @@
 ( 368 -336 -48 ) ( 368 -336 -47 ) ( 368 -335 -48 ) __TB_empty [ 0 1 0 0 ] [ 0 0 -1.0000000000000002 16 ] 0 1 1
 }
 }
-// entity 25
+// entity 26
 {
 "classname" "grave"
 "angles" "0 0 0"
@@ -909,7 +917,7 @@
 ( 368 -448 -48 ) ( 368 -448 -47 ) ( 368 -447 -48 ) __TB_empty [ 0 1 0 16 ] [ 0 0 -1.0000000000000002 16 ] 180 1 1
 }
 }
-// entity 26
+// entity 27
 {
 "classname" "grave"
 "angles" "0 0 0"
@@ -925,7 +933,7 @@
 ( 368 -560 -48 ) ( 368 -560 -47 ) ( 368 -559 -48 ) __TB_empty [ 0 1 0 0 ] [ 0 0 -1.0000000000000002 16 ] 0 1 1
 }
 }
-// entity 27
+// entity 28
 {
 "classname" "grave"
 "angles" "0 0 0"
@@ -941,7 +949,7 @@
 ( -208 -560 -48 ) ( -208 -560 -47 ) ( -208 -559 -48 ) __TB_empty [ 0 1 0 0 ] [ 0 0 -1.0000000000000002 16 ] 180 1 1
 }
 }
-// entity 28
+// entity 29
 {
 "classname" "grave"
 "angles" "0 0 0"
@@ -957,7 +965,7 @@
 ( -208 -448 -48 ) ( -208 -448 -47 ) ( -208 -447 -48 ) __TB_empty [ 0 1 0 -16 ] [ 0 0 -1.0000000000000002 16 ] 270 1 1
 }
 }
-// entity 29
+// entity 30
 {
 "classname" "grave"
 "angles" "0 0 0"
@@ -973,7 +981,7 @@
 ( -208 -336 -48 ) ( -208 -336 -47 ) ( -208 -335 -48 ) __TB_empty [ 0 1 0 0 ] [ 0 0 -1.0000000000000002 16 ] 0 1 1
 }
 }
-// entity 30
+// entity 31
 {
 "classname" "body_spawner"
 "origin" "-48.625 -616.375 224"
@@ -981,14 +989,14 @@
 "queue" "octopus,octopus,octopus"
 "_tb_layer" "1"
 }
-// entity 31
+// entity 32
 {
 "classname" "button"
 "origin" "-48 -672 72"
 "angles" "0 0 -90"
 "_tb_layer" "1"
 }
-// entity 32
+// entity 33
 {
 "classname" "func_group"
 "_tb_type" "_tb_layer"

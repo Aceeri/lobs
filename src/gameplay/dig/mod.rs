@@ -142,6 +142,10 @@ fn init_voxel_volumes(
         let translation = aabb_center - mesh_center;
         let world_size = Vec3::new(bounds.x as f32, bounds.y as f32, bounds.z as f32) * VOXEL_SIZE;
 
+        // Strip auto-generated collider from default_solid_scene_hooks
+        // so only the voxel collider from remesh_voxels is used.
+        commands.entity(entity).remove::<Collider>();
+
         commands
             .entity(entity)
             .insert((

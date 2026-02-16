@@ -14,6 +14,7 @@ pub(super) fn plugin(app: &mut App) {
         YarnSpinnerPlugin::with_yarn_sources(vec![
             // YarnFileSource::file("dialogue/npc.yarn"),
             YarnFileSource::file("dialogue/lefty_larry.yarn"),
+            YarnFileSource::file("dialogue/tutorial_storekeeper.yarn"),
         ]),
         ExampleYarnSpinnerDialogueViewPlugin::default(),
     ));
