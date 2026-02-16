@@ -11,6 +11,9 @@ use super::tags::Tags;
 use crate::gameplay::crusts::Crusts;
 use crate::third_party::avian3d::CollisionLayer;
 
+/// Maximum air_ratio for a grave to count as "filled" (80% dirt).
+pub(crate) const GRAVE_FILL_THRESHOLD: f32 = 0.2;
+
 pub fn plugin(app: &mut App) {
     app.add_systems(
         Update,
@@ -442,7 +445,7 @@ fn grave_reward(
         }
         let filled_enough = voxel_volume
             .and_then(|v| voxels.get(v.0).ok())
-            .is_some_and(|sim| sim.air_ratio() <= 0.2);
+            .is_some_and(|sim| sim.air_ratio() <= GRAVE_FILL_THRESHOLD);
         if filled_enough {
             let to_give = state.filled.saturating_sub(state.rewarded);
             crusts.add(to_give);

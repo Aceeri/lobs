@@ -6,8 +6,9 @@ use bevy_yarnspinner::prelude::*;
 
 use super::crusts::HudTopLeft;
 use super::dig::{VoxelGraves, VoxelSim};
-use crate::gameplay::grave::{GraveState, Slotted, SpawnBody};
-use crate::gameplay::npc::{Health, SpawnEnemy, SpawnNpc};
+use crate::gameplay::grave::{GraveState, Slotted, SpawnBody, GRAVE_FILL_THRESHOLD};
+use crate::gameplay::npc::{Health, NpcDead, SpawnEnemy, SpawnNpc};
+use crate::gameplay::sensor_area::player_in_sensor;
 use crate::gameplay::tags::Tags;
 use crate::props::specific::light::FlickerLight;
 use crate::screens::Screen;
@@ -114,7 +115,7 @@ impl Default for Objectives {
                                     .iter()
                                     .filter(|(sim, tags, voxel_graves)| {
                                         tags.contains("tutorial")
-                                            && sim.air_ratio() <= 0.1
+                                            && sim.air_ratio() <= GRAVE_FILL_THRESHOLD
                                             && voxel_graves
                                                 .0
                                                 .iter()
@@ -149,17 +150,36 @@ impl Default for Objectives {
                                 spawner_name: "tutorial_octopus".to_string(),
                             });
                         }),
-                    SubObjective::tracked("bury_whale", "bury the whale", 1).hook(
-                        |bodies: Query<&Tags, With<Slotted>>| -> u32 {
-                            let buried = bodies.iter().any(|tags| tags.contains("tutorial_whale"));
-                            if buried { 1 } else { 0 }
-                        },
-                    ),
-                    SubObjective::tracked("help_larry", "help larry!!!", 1),
+                    SubObjective::binary("bury_whale", "bury the whale")
+                        .hook(player_in_sensor(&["tutorial_hallway"])),
+                    SubObjective::tracked("help_larry", "help larry, shoot the octopi", 2)
+                        .hook(|dead: Query<&Tags, With<NpcDead>>| -> u32 {
+                            dead.iter()
+                                .filter(|tags| tags.contains("tutorial_octopus"))
+                                .count() as u32
+                        }),
                     SubObjective::tracked(
                         "bury_whale_octopi",
                         "bury the whale... and the octopi",
                         3,
+                    )
+                    .hook(
+                        |voxels: Query<(&VoxelSim, &Tags, &VoxelGraves)>,
+                         graves: Query<&GraveState>|
+                         -> u32 {
+                            let total = voxels
+                                .iter()
+                                .filter(|(sim, tags, voxel_graves)| {
+                                    tags.contains("tutorial")
+                                        && sim.air_ratio() <= GRAVE_FILL_THRESHOLD
+                                        && voxel_graves
+                                            .0
+                                            .iter()
+                                            .any(|&e| graves.get(e).is_ok_and(|g| g.filled()))
+                                })
+                                .count() as u32;
+                            total.saturating_sub(3)
+                        },
                     )
                     .on_complete(|mut commands: Commands| {
                         // complete `the_molt` and

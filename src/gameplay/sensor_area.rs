@@ -3,8 +3,24 @@ use bevy::prelude::*;
 use bevy_trenchbroom::geometry::{Brushes, BrushesAsset};
 use bevy_trenchbroom::prelude::*;
 
+use super::player::Player;
 use super::tags::Tags;
 use crate::third_party::avian3d::CollisionLayer;
+
+/// Returns a system that checks if the player is inside any sensor area
+/// matching all of the given tags.
+pub(crate) fn player_in_sensor(
+    tags: &[&str],
+) -> impl FnMut(Query<(&CollidingEntities, &Tags)>, Query<(), With<Player>>) -> bool + Send + Sync
+{
+    let tags: Vec<String> = tags.iter().map(|s| s.to_string()).collect();
+    move |sensors: Query<(&CollidingEntities, &Tags)>, players: Query<(), With<Player>>| {
+        sensors.iter().any(|(colliding, sensor_tags)| {
+            tags.iter().all(|t| sensor_tags.contains(t))
+                && colliding.iter().any(|&e| players.get(e).is_ok())
+        })
+    }
+}
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, init_sensor_areas);
