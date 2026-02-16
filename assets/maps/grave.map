@@ -752,14 +752,16 @@
 "origin" "-904 104 56"
 "projectile_count" "5"
 "model" "octopus"
+"angles" "0 180 0"
 }
 // entity 9
 {
 "classname" "enemy_gunner"
-"origin" "-1048 88 56"
+"origin" "-1048 72 56"
 "pattern" "spread"
 "projectile_count" "5"
 "model" "octopus"
+"angles" "0 180 0"
 }
 // entity 10
 {
@@ -940,16 +942,17 @@
 {
 "classname" "enemy_gunner"
 "origin" "-1240 616 232"
-"projectile_count" "5"
+"projectile_count" "12"
 "model" "octopus"
 "pattern" "spread"
 "tag" "octopus_gang_1"
+"angles" "0 -45 0"
 }
 // entity 24
 {
 "classname" "enemy_gunner"
 "origin" "-1640 584 200"
-"projectile_count" "5"
+"projectile_count" "12"
 "model" "octopus"
 "pattern" "spread"
 "tag" "octopus_gang_1"
@@ -958,19 +961,21 @@
 {
 "classname" "enemy_gunner"
 "origin" "-1080 376 24"
-"projectile_count" "5"
+"projectile_count" "12"
 "model" "octopus"
 "pattern" "spread"
 "tag" "octopus_gang_1"
+"angles" "0 120 0"
 }
 // entity 26
 {
 "classname" "enemy_gunner"
 "origin" "-1144 680 24"
-"projectile_count" "5"
+"projectile_count" "24"
 "model" "octopus"
 "pattern" "radial"
 "tag" "octopus_gang_1"
+"angles" "0 180 0"
 }
 // entity 27
 {
@@ -1009,8 +1014,10 @@
 "origin" "-1680 -1688 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 30
 {
@@ -1018,8 +1025,10 @@
 "origin" "-1864 -1768 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 31
 {
@@ -1027,8 +1036,10 @@
 "origin" "-1920 -1624 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 32
 {
@@ -1036,8 +1047,10 @@
 "origin" "-1512 -1808 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 33
 {
@@ -1045,8 +1058,10 @@
 "origin" "-1536 -1544 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 34
 {
@@ -1054,8 +1069,10 @@
 "origin" "-1896 -1488 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 35
 {
@@ -1063,8 +1080,10 @@
 "origin" "-2136 -1592 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 36
 {
@@ -1072,8 +1091,10 @@
 "origin" "-2064 -1784 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 37
 {
@@ -1081,8 +1102,10 @@
 "origin" "-1792 -1904 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 38
 {
@@ -1090,8 +1113,10 @@
 "origin" "-2248 -1688 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 39
 {
@@ -1099,8 +1124,10 @@
 "origin" "-2360 -1432 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 40
 {
@@ -1108,8 +1135,10 @@
 "origin" "-2440 -1816 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 41
 {
@@ -1117,8 +1146,10 @@
 "origin" "-2512 -1624 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 42
 {
@@ -1126,8 +1157,10 @@
 "origin" "-2560 -1432 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 43
 {
@@ -1135,8 +1168,10 @@
 "origin" "-2568 -1824 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 44
 {
@@ -1144,8 +1179,10 @@
 "origin" "-2104 -1384 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 45
 {
@@ -1153,8 +1190,10 @@
 "origin" "-1640 -1376 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 46
 {
@@ -1162,8 +1201,10 @@
 "origin" "-1336 -1376 24"
 "pattern" "radial"
 "projectile_count" "24"
-"model" "whale"
+"model" "octopus"
 "tag" "whale_spam_gang_1"
+"range" "30"
+"angles" "0 -90 0"
 }
 // entity 47
 {

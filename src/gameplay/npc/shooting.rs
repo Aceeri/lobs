@@ -38,9 +38,6 @@ pub(super) fn plugin(app: &mut App) {
     app.add_observer(init_projectile_assets);
 }
 
-// ---------------------------------------------------------------------------
-// Resources
-// ---------------------------------------------------------------------------
 
 #[derive(Resource)]
 struct ProjectileAssets {
@@ -72,9 +69,6 @@ fn init_projectile_assets(
     });
 }
 
-// ---------------------------------------------------------------------------
-// Components
-// ---------------------------------------------------------------------------
 
 #[derive(Component, Clone, Debug)]
 pub(crate) struct Faction(pub String);
@@ -164,9 +158,6 @@ pub(crate) struct AggroConfig {
     pub swapped_to_player: bool,
 }
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
 
 const PROJECTILE_LIFETIME: f32 = 6.0;
 const SPREAD_HALF_ANGLE: f32 = PI / 6.0; // 30 degrees total cone
@@ -175,9 +166,6 @@ const DETECTION_HALF_ANGLE: f32 = PI / 3.0; // 60°
 /// How long an enemy stays alert after losing sight of the player.
 const LOSE_SIGHT_DURATION: f32 = 3.0;
 
-// ---------------------------------------------------------------------------
-// Systems
-// ---------------------------------------------------------------------------
 
 fn resolve_aggro_targets(
     mut commands: Commands,

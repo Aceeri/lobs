@@ -212,7 +212,7 @@ pub(crate) struct Crusts(pub(crate) u32);
 
 impl Default for Crusts {
     fn default() -> Self {
-        Self(100)
+        Self(0)
     }
 }
 
@@ -351,7 +351,6 @@ fn update_crusts_text(crusts: Res<Crusts>, mut query: Query<&mut Text, With<Crus
     }
 }
 
-// --- +N popup ---
 
 #[derive(Event)]
 pub(crate) struct CrustsRewarded(pub u32);

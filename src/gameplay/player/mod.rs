@@ -13,9 +13,12 @@ use bevy_trenchbroom::prelude::*;
 use input::PlayerInputContext;
 use navmesh_position::LastValidPlayerNavmeshPosition;
 
+use std::any::TypeId;
+
 use crate::{
     animation::AnimationState,
     asset_tracking::LoadResource,
+    gameplay::tags::TagIndex,
     screens::Screen,
     third_party::{avian3d::CollisionLayer, bevy_trenchbroom::GetTrenchbroomModelPath as _},
 };
@@ -35,6 +38,10 @@ pub(crate) struct Invincible(pub Timer);
 /// Stored on the player entity so we can teleport back on fall-out.
 #[derive(Component)]
 struct SpawnPoint(Vec3);
+
+/// Marker inserted when the player dies. Contains the respawn countdown timer.
+#[derive(Component)]
+pub(crate) struct PlayerDead(pub Timer);
 
 mod animation;
 pub(crate) mod assets;
@@ -61,7 +68,14 @@ pub(super) fn plugin(app: &mut App) {
     app.add_systems(PreUpdate, assert_only_one_player);
     app.add_systems(
         Update,
-        (push_props, tick_invincibility, respawn_fallen_player).run_if(in_state(Screen::Gameplay)),
+        (
+            push_props,
+            tick_invincibility,
+            respawn_fallen_player,
+            detect_player_death,
+            respawn_player,
+        )
+            .run_if(in_state(Screen::Gameplay)),
     );
 }
 
@@ -218,4 +232,62 @@ pub(crate) fn hurt_player(
         .entity(entity)
         .insert(Invincible(Timer::from_seconds(1.0, TimerMode::Once)));
     true
+}
+
+const RESPAWN_SECONDS: f32 = 3.0;
+
+fn detect_player_death(
+    mut commands: Commands,
+    player: Query<(Entity, &PlayerHealth), (With<Player>, Without<PlayerDead>)>,
+    mut blocks_input: ResMut<input::BlocksInput>,
+) {
+    let Ok((entity, health)) = player.single() else {
+        return;
+    };
+    if health.current == 0 {
+        commands.entity(entity).insert(PlayerDead(Timer::from_seconds(
+            RESPAWN_SECONDS,
+            TimerMode::Once,
+        )));
+        blocks_input.insert(TypeId::of::<PlayerDead>());
+    }
+}
+
+fn respawn_player(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut player: Query<
+        (Entity, &mut PlayerDead, &mut PlayerHealth, &SpawnPoint, &mut Transform),
+        With<Player>,
+    >,
+    tag_index: Res<TagIndex>,
+    global_transforms: Query<&GlobalTransform>,
+    mut blocks_input: ResMut<input::BlocksInput>,
+) {
+    let Ok((entity, mut dead, mut health, spawn_point, mut transform)) = player.single_mut()
+    else {
+        return;
+    };
+
+    dead.0.tick(time.delta());
+    if !dead.0.just_finished() {
+        return;
+    }
+
+    // Find checkpoint tagged "tutorial_spawn", fall back to SpawnPoint.
+    let respawn_pos = tag_index
+        .get("tutorial_spawn")
+        .and_then(|entities| {
+            entities
+                .iter()
+                .next()
+                .and_then(|&e| global_transforms.get(e).ok())
+        })
+        .map(|tf| tf.translation())
+        .unwrap_or(spawn_point.0);
+
+    transform.translation = respawn_pos;
+    health.current = health.max;
+    commands.entity(entity).remove::<(PlayerDead, Invincible)>();
+    blocks_input.remove(&TypeId::of::<PlayerDead>());
 }

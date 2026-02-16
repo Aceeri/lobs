@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 
 use super::npc::Health;
-use super::player::{PlayerHealth, camera::PlayerCamera};
+use super::player::{PlayerDead, PlayerHealth, camera::PlayerCamera};
 use crate::{screens::Screen, theme::GameFont};
 
 pub fn plugin(app: &mut App) {
     app.add_observer(spawn_healthbar);
+    app.add_observer(spawn_death_overlay);
+    app.add_observer(despawn_death_overlay);
     app.add_systems(OnEnter(Screen::Gameplay), spawn_player_health_bar);
     app.add_systems(
         Update,
@@ -280,5 +282,51 @@ fn update_player_health_bar(
 
     for mut t in &mut text {
         **t = format!("{} / {}", health.current, health.max);
+    }
+}
+
+
+#[derive(Component)]
+struct DeathOverlay;
+
+fn spawn_death_overlay(_on: On<Add, PlayerDead>, mut commands: Commands, font: Res<GameFont>) {
+    commands
+        .spawn((
+            Name::new("Death Overlay"),
+            DeathOverlay,
+            Node {
+                position_type: PositionType::Absolute,
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(16.0),
+                ..default()
+            },
+            BackgroundColor(Color::srgba(0.0, 0.0, 0.0, 0.7)),
+            GlobalZIndex(3),
+            Pickable::IGNORE,
+        ))
+        .with_children(|parent| {
+            parent.spawn((
+                Text::new("...with the fishes"),
+                TextFont {
+                    font: font.0.clone(),
+                    font_size: 64.0,
+                    ..default()
+                },
+                TextColor(Color::srgb(0.8, 0.1, 0.1)),
+            ));
+        });
+}
+
+fn despawn_death_overlay(
+    _on: On<Remove, PlayerDead>,
+    mut commands: Commands,
+    overlays: Query<Entity, With<DeathOverlay>>,
+) {
+    for entity in &overlays {
+        commands.entity(entity).despawn();
     }
 }

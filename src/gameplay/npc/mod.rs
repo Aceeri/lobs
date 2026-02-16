@@ -70,9 +70,6 @@ struct GunOffset(Vec3);
 
 #[derive(Component, Clone)]
 pub(crate) struct BodyConfig {
-    pub collider: ColliderConstructor,
-    pub alive_collider_transform: Transform,
-    pub dead_collider_transform: Transform,
     pub model_transform: Transform,
     pub density: f32,
 }
@@ -80,9 +77,6 @@ pub(crate) struct BodyConfig {
 impl Default for BodyConfig {
     fn default() -> Self {
         Self {
-            collider: ColliderConstructor::ConvexHullFromMesh,
-            alive_collider_transform: Transform::IDENTITY,
-            dead_collider_transform: Transform::IDENTITY,
             model_transform: Transform::from_rotation(Quat::from_rotation_y(
                 -std::f32::consts::FRAC_PI_2,
             )),
@@ -183,13 +177,7 @@ impl Default for NpcRegistry {
                 scene: "models/Octopus.glb#Scene0".into(),
                 radius: 0.8,
                 height: 3.0,
-                body: BodyConfig {
-                    dead_collider_transform: Transform {
-                        translation: Vec3::new(0.0, 2.0, 0.0),
-                        ..default()
-                    },
-                    ..BodyConfig::default()
-                },
+                body: BodyConfig::default(),
                 gun_offset: DEFAULT_GUN_OFFSET,
             },
         );
@@ -540,7 +528,6 @@ fn on_npc_death(
         .remove::<(
             Npc,
             EnemyGunner,
-            /* cc */
             CharacterController,
             bevy_ahoy::input::AccumulatedInput,
             bevy_ahoy::CharacterControllerState,
@@ -548,7 +535,6 @@ fn on_npc_death(
             bevy_ahoy::CharacterControllerDerivedProps,
             bevy_ahoy::prelude::WaterState,
             CustomPositionIntegration,
-            /* other */
             Health,
             YarnNode,
             shooting::NpcShooter,
@@ -561,7 +547,7 @@ fn on_npc_death(
             RigidBody::Dynamic,
             Body,
             transform.with_scale(Vec3::splat(0.75)),
-            Collider::capsule(NPC_RADIUS, NPC_HEIGHT),
+            Collider::cuboid(1.0, 1.0, 1.0),
             CollisionLayers::new(
                 [CollisionLayer::Prop, CollisionLayer::Ragdoll],
                 LayerMask::ALL,
